@@ -1,13 +1,23 @@
+from collections.abc import Generator
+
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-# 1. Địa chỉ kết nối tới Database (Postgres trong Docker)
-SQLALCHEMY_DATABASE_URL = "postgresql://user:password@db:5432/attendance_db"
+from src.core.config import settings
 
-# 2. Engine: Động cơ chính để thực thi các lệnh SQL
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+
+engine = create_engine(
+	settings.mysql_url,
+	pool_pre_ping=True,
+)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
+
+
+def get_db() -> Generator:
+	db = SessionLocal()
+	try:
+		yield db
+	finally:
+		db.close()

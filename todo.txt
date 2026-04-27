@@ -1,0 +1,111 @@
+1. CHỐT CÔNG NGHỆ (TECH STACK)
+Backend: FastAPI + Uvicorn + SQLAlchemy (Python). Nhanh, code nhàn.
+
+Database chính: MySQL 8.0. Quen thuộc với mọi người, lưu thông tin sinh viên và log điểm danh.
+
+Cache & Message Queue: Redis. Dùng để làm bộ nhớ đệm cho khuôn mặt và làm "hàng đợi" truyền ảnh cho AI.
+
+Vector Database: Qdrant. Chuyên dụng để tìm kiếm khuôn mặt (1:N) siêu tốc.
+
+AI Worker: Celery + InsightFace/YOLO + OpenCV. Chạy ngầm độc lập để quét mặt không làm treo Backend.
+
+Lưu trữ ảnh (Object Storage): MinIO. Bắt buộc theo Rubric để lấy trọn điểm lưu trữ 3 loại (DB, Vector DB, Object Storage).
+
+Frontend: React + Vite + Template CoreUI.
+
+Load Balancer / Proxy: Nginx. Bắt buộc theo Rubric.
+
+Deployment: Docker Compose (Tất cả chạy bằng 1 lệnh). docker compose up -d
+
+```
+# nhớ
+git checkout main
+git pull origin main
+git checkout -b feature/ten-tinh-nang
+# mỗi ca làm việc nhớ git branch check out
+```
+
+2. PHÂN CÔNG CÔNG VIỆC (ROLES)
+Để dự án chạy mượt và không ai dẫm chân lên nhau, team chia việc như sau:
+
+Người 1: DevOps / Tech Lead / AI / System
+
+Lo toàn bộ hạ tầng Docker Compose (đảm bảo gõ 1 lệnh là chạy cả 9 services gồm MySQL, Redis, Qdrant, MinIO, Nginx).
+
+Code phần Worker AI (Celery + InsightFace) để nhận ảnh, trích xuất vector khuôn mặt và ném vào Qdrant.
+
+Setup cấu trúc thư mục chuẩn, trực tiếp quản lý Pull Request và review code của anh em trước khi merge vào nhánh main.
+
+Người 2: Backend Developer
+
+Chịu trách nhiệm file backend/. , worker/.
+
+Định nghĩa các bảng DB (User, FaceEmbedding, AttendanceLog) bằng SQLAlchemy.
+
+Viết các API CRUD cơ bản: POST /register (lưu data DB, lưu file ảnh lên MinIO), POST /attendance (nhận frame, gọi Worker, trả kết quả).
+
+Viết logic lưu Cache và ném Task vào Redis.
+
+Về folder worker/.
+Bản chất của các model AI nhận diện khuôn mặt (như YOLO hay InsightFace) là tính toán ma trận ma trận khổng lồ.
+
+Nếu bạn để FastAPI tự chạy AI: Khi có 3 sinh viên cùng đứng trước camera, FastAPI sẽ phải "ôm" cả 3 cái ảnh đó để tính toán. Lập tức API bị treo (blocking). Lúc này, giảng viên mà bấm vào trang web để xem danh sách lớp thì web sẽ cứ xoay mòng mòng (chết server hoặc timeout) vì FastAPI đang bận soi mặt sinh viên.
+
+Nhiệm vụ thực sự của worker/
+Thư mục worker/ sinh ra để chứa các "tiến trình chạy ngầm" (Background Tasks).
+
+Luồng chạy thực tế sẽ rất mượt:
+
+Sinh viên đứng vào khung hình. Frontend gửi ảnh lên Backend.
+
+Backend lưu ảnh vào ổ cứng, viết 1 tờ giấy note ném vào Redis: "Ê Worker, có ảnh của thằng MSSV 24022454 kìa, xử lý đi", rồi trả lời Frontend ngay lập tức: "Đã nhận, chờ tí". Backend lại rảnh tay phục vụ người khác.
+
+Cái Worker đang nằm vùng ngầm, thấy trong Redis có thư thì bốc ra đọc. Nó lôi ảnh từ ổ cứng lên, bật YOLO quét mặt, chạy InsightFace ra Vector, rồi tự động ném cái Vector đó vào Qdrant và báo lưu MySQL là: "Điểm danh xong!".
+
+Người 3: Frontend Developer
+
+Chịu trách nhiệm file frontend/ và cấu hình Nginx. Dùng CoreUI dựng form.
+
+Làm giao diện Admin (Thêm/Sửa/Xóa sinh viên, Xem bảng log điểm danh).
+
+Làm giao diện luồng Camera: Hiển thị mượt 30FPS, nhưng cứ 200ms (5 FPS) mới bốc 1 frame gửi HTTP POST lên Backend để check (kỹ thuật này giúp Frontend mượt mà Backend không bị quá tải). Xử lý hiển thị kết quả realtime và bắt lỗi giao diện (mất kết nối, sai mặt).
+
+Người 4: BA / Tester / Document (Non-Tech)
+
+Không cần code! Chỉ tập trung đảm bảo điểm cộng của Rubric.
+
+Tester: Dùng Postman bắn test API của Backend xem có sập không. Bấm nát giao diện của Frontend tìm bug và test các tình huống lỗi.
+
+Tài liệu: Dùng PlantUML vẽ 6 sơ đồ (Use Case, Component, Sequence, Activity, Class, Deployment) cho vào báo cáo. Giải thích các sơ đồ này vào file Word.
+
+Slide & Thuyết trình: Viết file README.md chuẩn chỉ, chuẩn bị kịch bản demo và làm slide báo cáo cuối kỳ. Quay video demo dự phòng.
+
+3. TODO BÁO CÁO VÀ TÀI LIỆU (BA / TESTER)
+
+Viết test case(Nếu đủ thời gian)
+
+Quản lý GitHub (Hạn chót 27/04)
+- Để repo ở chế độ PRIVATE, add 3 thành viên còn lại vào.
+- Bắt buộc add 5 tài khoản giảng viên cấp quyền Read: daovietanh190499, Toan-Nguyen26, anhsuplo-87, 20020054-spm, hphungg.
+- Nộp link repo lên form đăng ký đề tài.
+
+Hoàn thiện file README.md
+- Ghi rõ Tech Stack (đặc biệt là có MinIO, Nginx, Qdrant), dán ảnh kiến trúc hệ thống vào.
+- Viết hướng dẫn chạy (chỉ cần gõ docker compose up -d).
+- Cung cấp sẵn tài khoản Admin demo (ví dụ: admin/123456) và vài MSSV test để thầy cô test luôn không cần tự chụp mặt.
+
+Viết Báo cáo Word/PDF
+- Dán 6 sơ đồ UML đã vẽ (Use Case, Activity, Sequence, Class, Component, Deployment) kèm vài dòng giải thích.
+- Giải thích lý do dùng 3 chỗ lưu: MySQL (thông tin text), Qdrant (vector khuôn mặt), MinIO (lưu file ảnh). Đảm bảo giảng viên thấy mình đáp ứng đủ Rubric.
+- Chụp màn hình giao diện thực tế dán vào, nhấn mạnh các phần điểm cộng (Nginx, cooldown 30s).
+
+Slide và Video Demo
+- Làm slide 10-15 trang, dùng nhiều hình vẽ sơ đồ, ít chữ. Chia rõ người thuyết trình.
+- Quay sẵn 1 video 3-5 phút demo từ A-Z (đăng ký -> quẹt mặt -> check log). Cái này để backup lỡ hôm bảo vệ mạng trường lag hoặc lỗi cam.
+
+```
+# cực kỳ lưu ý từ Rubric
+check kỹ file .gitignore trước khi commit
+tuyệt đối không push file .env có password lên mạng, chỉ push .env.example
+MinIO và Nginx là bắt buộc để lấy trọn điểm cấu trúc theo Rubric, team không được bỏ.
+```

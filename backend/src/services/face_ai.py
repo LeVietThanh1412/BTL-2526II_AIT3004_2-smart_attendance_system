@@ -1,108 +1,44 @@
-import base64
-import binascii
-from io import BytesIO
+"""
+Redis-backed embedding cache for fast attendance lookups.
 
-import cv2
-import numpy as np
-from fastapi import HTTPException, status
-from PIL import Image
+The actual face-AI pipeline (extract embedding, compare) runs in the Celery
+worker.  The backend only reads/writes the cache so it can serve results
+quickly via the /attendance/result endpoint.
+"""
+import json
+
+from redis import Redis
+from redis.exceptions import RedisError
 
 from src.core.config import settings
 
+_RESULT_PREFIX = "attendance:result:"
+_EMBED_PREFIX = "user:{student_id}:embedding"
 
-class FaceAIService:
+
+class AttendanceResultCache:
+    """Store/retrieve task results in Redis so the frontend can poll."""
+
     def __init__(self) -> None:
-        self._yolo_model = None
-        self._face_analysis = None
+        self.client = Redis.from_url(settings.redis_url, decode_responses=True)
 
-    def _load_yolo(self):
-        if self._yolo_model is None:
-            try:
-                from ultralytics import YOLO
-            except Exception as exc:
-                raise RuntimeError(
-                    "YOLO is not available. Install ultralytics and provide YOLO_MODEL_PATH."
-                ) from exc
-            self._yolo_model = YOLO(settings.yolo_model_path)
-        return self._yolo_model
-
-    def _load_face_analysis(self):
-        if self._face_analysis is None:
-            try:
-                from insightface.app import FaceAnalysis
-            except Exception as exc:
-                raise RuntimeError(
-                    "InsightFace is not available. Install insightface and onnxruntime."
-                ) from exc
-
-            self._face_analysis = FaceAnalysis(
-                providers=["CPUExecutionProvider"],
-            )
-            self._face_analysis.prepare(ctx_id=-1, det_size=(640, 640))
-        return self._face_analysis
-
-    @staticmethod
-    def _decode_base64_image(image_b64: str) -> np.ndarray:
-        payload = image_b64.split(",", 1)[1] if "," in image_b64 else image_b64
+    def set_result(self, task_id: str, data: dict, ttl: int = 300) -> None:
         try:
-            binary = base64.b64decode(payload)
-        except (binascii.Error, ValueError) as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid base64 image payload.",
-            ) from exc
+            self.client.setex(f"{_RESULT_PREFIX}{task_id}", ttl, json.dumps(data))
+        except RedisError:
+            pass
 
+    def get_result(self, task_id: str) -> dict | None:
         try:
-            pil_image = Image.open(BytesIO(binary)).convert("RGB")
-        except Exception as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot decode image content.",
-            ) from exc
-
-        rgb = np.array(pil_image)
-        return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-
-    @staticmethod
-    def _largest_box(boxes: np.ndarray) -> np.ndarray:
-        areas = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
-        return boxes[int(np.argmax(areas))]
-
-    def detect_and_crop_face(self, image_bgr: np.ndarray) -> np.ndarray:
-        model = self._load_yolo()
-        result = model.predict(image_bgr, verbose=False, conf=0.25)[0]
-        boxes = result.boxes.xyxy.cpu().numpy() if result.boxes is not None else np.array([])
-        if boxes.size == 0:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="No face detected. Please provide a clearer face image.",
-            )
-
-        x1, y1, x2, y2 = self._largest_box(boxes).astype(int)
-        h, w = image_bgr.shape[:2]
-        x1, y1 = max(0, x1), max(0, y1)
-        x2, y2 = min(w, x2), min(h, y2)
-        if x2 <= x1 or y2 <= y1:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Detected face crop is invalid.",
-            )
-        return image_bgr[y1:y2, x1:x2]
-
-    def extract_embedding(self, face_bgr: np.ndarray) -> np.ndarray:
-        face_app = self._load_face_analysis()
-        faces = face_app.get(face_bgr)
-        if not faces:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Cannot extract facial embedding from the captured image.",
-            )
-        return faces[0].embedding.astype(np.float32)
-
-    def embedding_from_base64(self, image_b64: str) -> np.ndarray:
-        image = self._decode_base64_image(image_b64)
-        crop = self.detect_and_crop_face(image)
-        return self.extract_embedding(crop)
+            raw = self.client.get(f"{_RESULT_PREFIX}{task_id}")
+        except RedisError:
+            return None
+        if raw is None:
+            return None
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            return None
 
 
-face_ai_service = FaceAIService()
+attendance_result_cache = AttendanceResultCache()

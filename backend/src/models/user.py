@@ -18,6 +18,7 @@ class User(Base):
 	id = Column(Integer, primary_key=True, index=True)
 	student_id = Column(String(30), unique=True, index=True, nullable=False)
 	name = Column(String(255), nullable=False)
+	class_name = Column(String(100), nullable=True)
 	created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 	updated_at = Column(
 		DateTime(timezone=True),
@@ -63,7 +64,7 @@ class AttendanceLog(Base):
 	user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 	similarity_score = Column(Float, nullable=False)
 	status = Column(Enum(AttendanceStatus), nullable=False)
-	captured_image_path = Column(String(500), nullable=True)
+	minio_image_url = Column(String(500), nullable=True)
 	timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
 
 	user = relationship("User", back_populates="attendance_logs")

@@ -18,6 +18,16 @@ class Settings(BaseSettings):
 
 	redis_embedding_ttl_seconds: int = 86400
 
+	# Thêm cấu hình Celery, Qdrant, MinIO theo Phase 1
+	celery_broker_url: str = "redis://localhost:6379/0"
+	celery_result_backend: str = "redis://localhost:6379/1"
+
+	qdrant_url: str = "http://localhost:6333"
+
+	minio_endpoint: str = "localhost:9000"
+	minio_access_key: str = "minioadmin"
+	minio_secret_key: str = "minioadmin"
+	minio_bucket_name: str = "attendance-images"
 	model_config = SettingsConfigDict(
 		env_file=".env",
 		env_file_encoding="utf-8",

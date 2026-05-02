@@ -61,7 +61,7 @@ class AttendanceLog(Base):
 	__tablename__ = "attendance_logs"
 
 	id = Column(Integer, primary_key=True, index=True)
-	user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+	user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
 	similarity_score = Column(Float, nullable=False)
 	status = Column(Enum(AttendanceStatus), nullable=False)
 	minio_image_url = Column(String(500), nullable=True)

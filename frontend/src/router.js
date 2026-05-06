@@ -9,6 +9,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const Dashboard = () => import('./admin/pages/Dashboard.vue')
 const RegisterAttendance = () => import('./admin/pages/RegisterAttendance.vue')
+const AttendanceLogs = () => import('./admin/pages/AttendanceLogs.vue')
 const CheckIn = () => import('./user/CheckIn.vue')
 
 const routes = [
@@ -17,6 +18,7 @@ const routes = [
     // Trang Admin
     { path: '/admin/dashboard', name: 'Dashboard', component: Dashboard },
     { path: '/admin/register', name: 'RegisterAttendance', component: RegisterAttendance },
+    { path: '/admin/attendance-logs', name: 'AttendanceLogs', component: AttendanceLogs },
 
     // Trang User: chụp ảnh để điểm danh hằng ngày
     { path: '/checkin', name: 'CheckIn', component: CheckIn },

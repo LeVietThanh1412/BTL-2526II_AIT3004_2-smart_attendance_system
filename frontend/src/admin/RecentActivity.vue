@@ -2,10 +2,12 @@
     <div class="panel-card">
         <div class="activity-header">
             <h2>Hoạt động gần đây</h2>
-            <a href="#" class="view-all-link">Xem tất cả</a>
+            <router-link to="/admin/attendance-logs" class="view-all-link">Xem tất cả</router-link>
         </div>
 
         <div v-if="loading" class="loading">Đang tải dữ liệu...</div>
+
+        <div v-else-if="errorMessage" class="loading error">{{ errorMessage }}</div>
 
         <ul v-else-if="activities.length" class="activity-list">
             <li v-for="(item, idx) in activities" :key="idx" class="activity-item">
@@ -31,19 +33,17 @@ import { fetchRecentActivities } from '../shared/api'
 
 const loading = ref(true)
 const activities = ref([])
+const errorMessage = ref('')
 
 const loadActivities = async () => {
+    errorMessage.value = ''
     try {
         const data = await fetchRecentActivities()
         activities.value = data
     } catch (err) {
-        console.error('[v0] Lỗi tải hoạt động, dùng dữ liệu giả lập:', err.message)
-        activities.value = [
-            { name: 'Trần Thị B', time: '08:15:22', date: '04/05/2026', status: 'Đi muộn', statusColor: 'red' },
-            { name: 'Lê Văn C', time: '07:55:10', date: '04/05/2026', status: 'Đúng giờ', statusColor: 'green' },
-            { name: 'Phạm Thu D', time: '07:45:00', date: '04/05/2026', status: 'Đúng giờ', statusColor: 'green' },
-            { name: 'Hoàng Văn E', time: '07:30:15', date: '04/05/2026', status: 'Đúng giờ', statusColor: 'green' },
-        ]
+        console.error('[v0] Lỗi tải hoạt động:', err.message)
+        activities.value = []
+        errorMessage.value = 'Không thể tải hoạt động gần đây. Vui lòng thử lại.'
     } finally {
         loading.value = false
     }
@@ -78,6 +78,10 @@ onMounted(loadActivities)
     text-align: center;
     color: var(--text-sub);
     font-size: 13px;
+}
+
+.loading.error {
+    color: var(--danger-color);
 }
 
 .activity-list {

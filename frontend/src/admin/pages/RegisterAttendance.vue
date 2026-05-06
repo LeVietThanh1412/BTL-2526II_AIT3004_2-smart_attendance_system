@@ -23,12 +23,53 @@
               <input v-model.trim="fullName" type="text" placeholder="VD: Nguyễn Văn A" />
             </label>
 
-            <label>
+            <div class="mode-toggle">
+              <label :class="{ active: registrationMode === 'images' }">
+                <input v-model="registrationMode" type="radio" value="images" :disabled="isRecording" />
+                Đăng ký bằng ảnh
+              </label>
+              <label :class="{ active: registrationMode === 'video' }">
+                <input v-model="registrationMode" type="radio" value="video" :disabled="isRecording" />
+                Đăng ký bằng video
+              </label>
+            </div>
+
+            <label v-if="registrationMode === 'images'">
               <span>Ảnh khuôn mặt</span>
               <input type="file" accept="image/*" multiple @change="handleImageSelection" />
             </label>
 
-            <p class="helper-text">Đã chọn {{ selectedImageCount }} ảnh. Hệ thống cần tối thiểu {{ minimumImages }} ảnh để đăng ký.</p>
+            <div v-else class="video-panel">
+              <span class="field-label">Video khuôn mặt</span>
+              <div class="video-actions">
+                <button type="button" class="secondary-btn" @click="startVideoPreview" :disabled="isRecording">
+                  Bật camera
+                </button>
+                <button type="button" class="secondary-btn" @click="startRecording" :disabled="isRecording">
+                  Bắt đầu quay
+                </button>
+                <button type="button" class="secondary-btn" @click="stopRecording" :disabled="!isRecording">
+                  Dừng quay
+                </button>
+                <label class="file-btn" :class="{ disabled: isRecording }">
+                  <input type="file" accept="video/*" :disabled="isRecording" @change="handleVideoSelection" />
+                  Chọn video
+                </label>
+                <button
+                  type="button"
+                  class="ghost-btn"
+                  @click="clearVideoSelection"
+                  :disabled="isRecording || (!videoFile && !videoPreviewUrl && !isVideoPreviewOn)"
+                >
+                  Xóa video
+                </button>
+              </div>
+              <p class="helper-text">Quay 10-20 giây, khuôn mặt rõ nét và đủ ánh sáng.</p>
+            </div>
+
+            <p v-if="registrationMode === 'images'" class="helper-text">
+              Đã chọn {{ selectedImageCount }} ảnh. Hệ thống cần tối thiểu {{ minimumImages }} ảnh để đăng ký.
+            </p>
 
             <button class="submit-btn" type="submit" :disabled="isSubmitting">
               {{ isSubmitting ? 'Đang đăng ký...' : 'Gửi đăng ký' }}
@@ -40,19 +81,38 @@
 
         <div class="panel-card preview-card">
           <div class="section-heading">
-            <h2>Xem trước ảnh</h2>
-            <p>Các ảnh đã chọn sẽ được chuyển sang base64 trước khi gửi backend.</p>
+            <h2>{{ registrationMode === 'images' ? 'Xem trước ảnh' : 'Xem trước video' }}</h2>
+            <p v-if="registrationMode === 'images'">Các ảnh đã chọn sẽ được chuyển sang dạng base64 trước khi gửi lên máy chủ.</p>
+            <p v-else>Video sẽ được gửi lên hệ thống để trích xuất khung hình khuôn mặt.</p>
           </div>
 
-          <div v-if="previewItems.length" class="preview-grid">
-            <figure v-for="item in previewItems" :key="item.name" class="preview-item">
-              <img :src="item.url" :alt="item.name" />
-              <figcaption>{{ item.name }}</figcaption>
-            </figure>
+          <div v-if="registrationMode === 'images'">
+            <div v-if="previewItems.length" class="preview-grid">
+              <figure v-for="item in previewItems" :key="item.name" class="preview-item">
+                <img :src="item.url" :alt="item.name" />
+                <figcaption>{{ item.name }}</figcaption>
+              </figure>
+            </div>
+
+            <div v-else class="empty-state">
+              Chưa có ảnh nào được chọn.
+            </div>
           </div>
 
-          <div v-else class="empty-state">
-            Chưa có ảnh nào được chọn.
+          <div v-else class="video-preview">
+            <video
+              ref="videoPreviewEl"
+              class="video-preview-el"
+              :controls="Boolean(videoPreviewUrl)"
+              :muted="!videoPreviewUrl"
+              autoplay
+              playsinline
+              v-show="isRecording || videoPreviewUrl || isVideoPreviewOn"
+            ></video>
+            <div v-if="!isRecording && !videoPreviewUrl && !isVideoPreviewOn" class="empty-state">
+              Chưa có video nào được chọn.
+            </div>
+            <p v-if="videoFile" class="video-meta">Tệp: {{ videoFile.name }}</p>
           </div>
         </div>
       </section>
@@ -61,16 +121,22 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import AdminSidebar from '../AdminSidebar.vue'
 import TopHeader from '../TopHeader.vue'
-import { registerEmployee } from '../../shared/api'
+import { registerEmployee, registerEmployeeVideo } from '../../shared/api'
 
 const studentId = ref('')
 const fullName = ref('')
 const selectedImages = ref([])
 const previewItems = ref([])
+const registrationMode = ref('images')
+const videoPreviewEl = ref(null)
+const videoPreviewUrl = ref('')
+const videoFile = ref(null)
+const isRecording = ref(false)
+const isVideoPreviewOn = ref(false)
 const isSubmitting = ref(false)
 const statusMessage = ref('')
 const statusTone = ref('neutral')
@@ -78,9 +144,138 @@ const statusTone = ref('neutral')
 const minimumImages = 3
 const selectedImageCount = computed(() => selectedImages.value.length)
 
+let videoStream = null
+let mediaRecorder = null
+let recordedChunks = []
+
 const clearPreviewItems = () => {
   previewItems.value.forEach((item) => URL.revokeObjectURL(item.url))
   previewItems.value = []
+}
+
+const resetVideoSelection = () => {
+  if (videoPreviewUrl.value) {
+    URL.revokeObjectURL(videoPreviewUrl.value)
+  }
+  videoPreviewUrl.value = ''
+  videoFile.value = null
+
+  if (videoPreviewEl.value) {
+    videoPreviewEl.value.pause?.()
+    videoPreviewEl.value.removeAttribute('src')
+    videoPreviewEl.value.load?.()
+    videoPreviewEl.value.controls = false
+    videoPreviewEl.value.muted = true
+  }
+}
+
+const stopVideoStream = () => {
+  if (videoStream) {
+    videoStream.getTracks().forEach((track) => track.stop())
+    videoStream = null
+  }
+  if (videoPreviewEl.value) {
+    videoPreviewEl.value.srcObject = null
+  }
+  isVideoPreviewOn.value = false
+}
+
+const setVideoSelection = (file) => {
+  resetVideoSelection()
+  videoFile.value = file
+  videoPreviewUrl.value = URL.createObjectURL(file)
+
+  if (videoPreviewEl.value) {
+    videoPreviewEl.value.srcObject = null
+    videoPreviewEl.value.src = videoPreviewUrl.value
+    videoPreviewEl.value.muted = false
+    videoPreviewEl.value.controls = true
+  }
+}
+
+const getSupportedMimeType = () => {
+  if (!window.MediaRecorder?.isTypeSupported) return ''
+  const candidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4']
+  return candidates.find((type) => MediaRecorder.isTypeSupported(type)) || ''
+}
+
+const startVideoPreview = async () => {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    statusMessage.value = 'Thiết bị không hỗ trợ quay video.'
+    statusTone.value = 'error'
+    return false
+  }
+
+  try {
+    stopVideoStream()
+    videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+
+    if (videoPreviewEl.value) {
+      videoPreviewEl.value.srcObject = videoStream
+      videoPreviewEl.value.muted = true
+      videoPreviewEl.value.controls = false
+      await videoPreviewEl.value.play?.()
+    }
+
+    isVideoPreviewOn.value = true
+    return true
+  } catch (error) {
+    console.error('[v0] Lỗi mở camera video:', error.message)
+    statusMessage.value = 'Không thể mở camera để quay video.'
+    statusTone.value = 'error'
+    return false
+  }
+}
+
+const startRecording = async () => {
+  if (isRecording.value) return
+  if (!window.MediaRecorder) {
+    statusMessage.value = 'Trình duyệt không hỗ trợ quay video.'
+    statusTone.value = 'error'
+    return
+  }
+
+  resetVideoSelection()
+  const ready = await startVideoPreview()
+  if (!ready) return
+
+  const mimeType = getSupportedMimeType()
+  recordedChunks = []
+
+  try {
+    mediaRecorder = mimeType ? new MediaRecorder(videoStream, { mimeType }) : new MediaRecorder(videoStream)
+  } catch (error) {
+    console.error('[v0] Lỗi khởi tạo MediaRecorder:', error.message)
+    statusMessage.value = 'Không thể bắt đầu quay video.'
+    statusTone.value = 'error'
+    return
+  }
+
+  mediaRecorder.ondataavailable = (event) => {
+    if (event.data && event.data.size > 0) {
+      recordedChunks.push(event.data)
+    }
+  }
+
+  mediaRecorder.onstop = () => {
+    const blobType = mimeType || 'video/webm'
+    const blob = new Blob(recordedChunks, { type: blobType })
+    const extension = blobType.includes('mp4') ? 'mp4' : 'webm'
+    const file = new File([blob], `register_${Date.now()}.${extension}`, { type: blobType })
+    setVideoSelection(file)
+    stopVideoStream()
+  }
+
+  mediaRecorder.start()
+  isRecording.value = true
+  statusMessage.value = 'Đang quay video...'
+  statusTone.value = 'neutral'
+}
+
+const stopRecording = () => {
+  if (!isRecording.value || !mediaRecorder) return
+  isRecording.value = false
+  mediaRecorder.stop()
 }
 
 const fileToBase64 = (file) =>
@@ -110,6 +305,30 @@ const handleImageSelection = (event) => {
   statusTone.value = 'neutral'
 }
 
+const handleVideoSelection = (event) => {
+  if (isRecording.value) return
+
+  const file = (event.target.files || [])[0]
+  if (!file) return
+
+  if (!file.type.startsWith('video/')) {
+    statusMessage.value = 'Vui lòng chọn đúng định dạng video.'
+    statusTone.value = 'error'
+    return
+  }
+
+  stopVideoStream()
+  setVideoSelection(file)
+  statusMessage.value = ''
+  statusTone.value = 'neutral'
+}
+
+const clearVideoSelection = () => {
+  if (isRecording.value) return
+  stopVideoStream()
+  resetVideoSelection()
+}
+
 const handleSubmit = async () => {
   if (!studentId.value || !fullName.value) {
     statusMessage.value = 'Vui lòng nhập đủ mã và họ tên.'
@@ -117,8 +336,14 @@ const handleSubmit = async () => {
     return
   }
 
-  if (selectedImageCount.value < minimumImages) {
+  if (registrationMode.value === 'images' && selectedImageCount.value < minimumImages) {
     statusMessage.value = `Cần ít nhất ${minimumImages} ảnh để đăng ký.`
+    statusTone.value = 'error'
+    return
+  }
+
+  if (registrationMode.value === 'video' && !videoFile.value) {
+    statusMessage.value = 'Vui lòng quay hoặc chọn video để đăng ký.'
     statusTone.value = 'error'
     return
   }
@@ -127,27 +352,53 @@ const handleSubmit = async () => {
   statusMessage.value = ''
 
   try {
-    const imagesBase64 = await Promise.all(selectedImages.value.map((file) => fileToBase64(file)))
+    if (registrationMode.value === 'images') {
+      const imagesBase64 = await Promise.all(selectedImages.value.map((file) => fileToBase64(file)))
 
-    const response = await registerEmployee({
-      student_id: studentId.value,
-      name: fullName.value,
-      images_base64: imagesBase64,
-    })
+      const response = await registerEmployee({
+        student_id: studentId.value,
+        name: fullName.value,
+        images_base64: imagesBase64,
+      })
 
-    statusMessage.value = `Đăng ký thành công: ${response.name} (${response.accepted_images} ảnh hợp lệ).`
+      statusMessage.value = `Đăng ký thành công: ${response.name} (${response.accepted_images} ảnh hợp lệ).`
+    } else {
+      const response = await registerEmployeeVideo({
+        student_id: studentId.value,
+        name: fullName.value,
+        videoFile: videoFile.value,
+      })
+
+      statusMessage.value = `Đăng ký thành công: ${response.name} (${response.frames_processed} khung hình hợp lệ).`
+    }
     statusTone.value = 'success'
   } catch (error) {
     console.error('[v0] Lỗi đăng ký nhân sự:', error.message)
-    statusMessage.value = 'Không thể kết nối backend, nhưng form đã hợp lệ và sẵn sàng gửi.'
-    statusTone.value = 'warning'
+    const detail = error?.response?.data?.detail
+    statusMessage.value = detail || 'Không thể kết nối hệ thống đăng ký. Vui lòng thử lại.'
+    statusTone.value = 'error'
   } finally {
     isSubmitting.value = false
   }
 }
 
+watch(registrationMode, (mode) => {
+  statusMessage.value = ''
+  statusTone.value = 'neutral'
+
+  if (mode === 'images') {
+    stopVideoStream()
+    resetVideoSelection()
+  } else {
+    clearPreviewItems()
+    selectedImages.value = []
+  }
+})
+
 onBeforeUnmount(() => {
   clearPreviewItems()
+  stopVideoStream()
+  resetVideoSelection()
 })
 </script>
 
@@ -194,6 +445,34 @@ main.content {
   gap: 8px;
 }
 
+.mode-toggle {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.mode-toggle label {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #fff;
+}
+
+.mode-toggle label.active {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 1px rgba(67, 97, 238, 0.2);
+}
+
+.mode-toggle input {
+  accent-color: var(--primary-color);
+}
+
 .register-form span {
   font-size: 13px;
   font-weight: 600;
@@ -218,6 +497,51 @@ main.content {
   margin: 0;
   color: var(--text-sub);
   font-size: 12px;
+}
+
+.video-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.video-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.secondary-btn,
+.ghost-btn,
+.file-btn {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background: #fff;
+  color: var(--text-main);
+}
+
+.secondary-btn:disabled,
+.ghost-btn:disabled,
+.file-btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.file-btn input {
+  display: none;
+}
+
+.ghost-btn {
+  background: #f8fafc;
 }
 
 .submit-btn {
@@ -294,6 +618,27 @@ main.content {
   padding: 24px;
   text-align: center;
   color: var(--text-sub);
+}
+
+.video-preview {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.video-preview-el {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: #0f172a;
+  max-height: 320px;
+}
+
+.video-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-sub);
+  word-break: break-word;
 }
 
 @media (max-width: 1100px) {

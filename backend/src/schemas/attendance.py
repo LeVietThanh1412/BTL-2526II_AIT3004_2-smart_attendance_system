@@ -1,24 +1,26 @@
-from datetime import datetime
-from typing import Any
-
 from pydantic import BaseModel, Field
 
 
+class AttendanceCheckRequest(BaseModel):
+	camera_id: str = Field(default="cam_01", min_length=1, max_length=50)
+
+
+class AttendanceCheckResponse(BaseModel):
+	status: str
+	student_id: str
+	message: str
+
+
 class AttendanceVerifyRequest(BaseModel):
-    image_base64: str = Field(min_length=20)
+	student_id: str = Field(min_length=3, max_length=30)
+	image_base64: str = Field(min_length=20)
+	camera_id: str = Field(default="cam_01", min_length=1, max_length=50)
 
 
 class AttendanceVerifyResponse(BaseModel):
-    status: str
-    task_id: str
-    message: str
-
-
-class AttendanceResultResponse(BaseModel):
-    task_id: str
-    status: str           # "processing" | "success" | "failed"
-    student_id: str | None = None
-    name: str | None = None
-    similarity: float | None = None
-    message: str | None = None
-    timestamp: datetime | None = None
+	student_id: str
+	name: str
+	similarity_score: float
+	threshold: float
+	success: bool
+	message: str | None = None

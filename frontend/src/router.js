@@ -7,8 +7,8 @@
 // =====================================================================
 import { createRouter, createWebHistory } from 'vue-router'
 
-const Dashboard = () => import('./admin/Dashboard.vue')
-const RegisterAttendance = () => import('./admin/RegisterAttendance.vue')
+const Dashboard = () => import('./admin/pages/Dashboard.vue')
+const RegisterAttendance = () => import('./admin/pages/RegisterAttendance.vue')
 const CheckIn = () => import('./user/CheckIn.vue')
 
 const routes = [

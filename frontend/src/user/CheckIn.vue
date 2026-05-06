@@ -98,7 +98,13 @@ const handleCheckIn = async () => {
 
     try {
         const res = await submitCheckIn(base64)
-        result.value = res
+        const now = new Date()
+        result.value = {
+            userName: res.student_id ? `Mã SV: ${res.student_id}` : 'Đã nhận diện khuôn mặt',
+            checkInTime: `${formatTime(now)} - ${formatShortDate(now)}`,
+            statusText: res.message || (res.status === 'success' ? 'Điểm danh thành công!' : 'Điểm danh thất bại!'),
+            isError: res.status !== 'success',
+        }
     } catch (err) {
         console.error('[v0] Lỗi gửi điểm danh, dùng dữ liệu giả lập:', err.message)
         const now = new Date()

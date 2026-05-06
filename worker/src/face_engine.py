@@ -1,70 +1,79 @@
+import os
 import tempfile
-from pathlib import Path
+from typing import Any
 
-import cv2
-import numpy as np
+import requests
+from deepface import DeepFace
+from qdrant_client import QdrantClient
 
 
 class FaceEngine:
-    MODEL_NAME = "Facenet512"   # 512-dim, good accuracy/speed tradeoff
-    DETECTOR = "retinaface"     # accurate detector
-
     def __init__(self) -> None:
+        qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
+        qdrant_api_key = os.getenv("QDRANT_API_KEY")
+        self.collection_name = os.getenv("QDRANT_COLLECTION", "face_embeddings")
+        self.model_name = os.getenv("DEEPFACE_MODEL_NAME", "Facenet")
+
+        if qdrant_api_key:
+            self.qdrant = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        else:
+            self.qdrant = QdrantClient(url=qdrant_url)
+
+    def extract_vector(self, image_url: str) -> list[float]:
+        if not image_url:
+            raise ValueError("image_url is required")
+
+        response = requests.get(image_url, timeout=30)
+        response.raise_for_status()
+
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_file:
+            tmp_file.write(response.content)
+            tmp_file.flush()
+            tmp_path = tmp_file.name
+
         try:
-            from deepface import DeepFace
-            self._deepface = DeepFace
-            self.initialized = True
-            # Warm-up: trigger model download on first use (lazy)
-        except ImportError:
-            self._deepface = None
-            self.initialized = False
-            print("WARNING: deepface not installed. AI features disabled.")
-
-    def get_embedding_from_bytes(self, image_bytes: bytes) -> list[float] | None:
-        """Extract face embedding from raw image bytes. Returns None if no face."""
-        if not self.initialized:
-            return None
-
-        # Write to a temp file because DeepFace expects a file path or numpy array
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-            tmp.write(image_bytes)
-            tmp_path = tmp.name
-
-        try:
-            return self._extract(tmp_path)
-        finally:
-            Path(tmp_path).unlink(missing_ok=True)
-
-    def get_embedding_from_path(self, image_path: str) -> list[float] | None:
-        """Extract face embedding from a local file path."""
-        if not self.initialized:
-            return None
-        return self._extract(image_path)
-
-    def _extract(self, image_path: str) -> list[float] | None:
-        try:
-            results = self._deepface.represent(
-                img_path=image_path,
-                model_name=self.MODEL_NAME,
-                detector_backend=self.DETECTOR,
-                enforce_detection=True,
-                align=True,
+            representations = DeepFace.represent(
+                img_path=tmp_path,
+                model_name=self.model_name,
+                enforce_detection=False,
+                detector_backend="opencv",
             )
-            if not results:
-                return None
-            # Take the largest face (by area of facial area)
-            best = max(results, key=lambda r: r.get("facial_area", {}).get("w", 0) * r.get("facial_area", {}).get("h", 0))
-            emb = best["embedding"]
-            # L2-normalize for cosine similarity in Qdrant
-            arr = np.array(emb, dtype=np.float32)
-            norm = np.linalg.norm(arr)
-            if norm > 0:
-                arr /= norm
-            return arr.tolist()
-        except Exception as e:
-            print(f"[FaceEngine] Extraction error: {e}")
-            return None
+        finally:
+            import os
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
+        if not representations:
+            raise ValueError("No face embedding extracted")
 
-face_engine = FaceEngine()
-EMBEDDING_SIZE = 512   # Facenet512 output dimension
+        first_representation = representations[0]
+        vector = first_representation.get("embedding")
+        if not vector:
+            raise ValueError("Embedding vector is empty")
+
+        return [float(v) for v in vector]
+
+    def search_qdrant(self, vector: list[float]) -> dict[str, Any]:
+        if not vector:
+            raise ValueError("vector is required")
+
+        results = self.qdrant.search(
+            collection_name=self.collection_name,
+            query_vector=vector,
+            limit=1,
+            with_payload=True,
+        )
+
+        if not results:
+            return {"student_id": "Unknown", "score": 0.0}
+
+        best_match = results[0]
+        payload = best_match.payload or {}
+        student_id = payload.get("student_id") or payload.get("user_id") or "Unknown"
+
+        return {
+            "student_id": str(student_id),
+            "score": float(best_match.score or 0.0),
+        }

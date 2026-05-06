@@ -11,7 +11,6 @@ from src.models import AttendanceLog, FaceEmbedding, User
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Ensure all ORM models are loaded before table creation.
     _ = (User, FaceEmbedding, AttendanceLog)
     Base.metadata.create_all(bind=engine)
     yield

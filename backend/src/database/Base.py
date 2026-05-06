@@ -3,11 +3,11 @@ from collections.abc import Generator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from src.core.config import settings
+from src.core.config import get_database_url
 
 
 engine = create_engine(
-	settings.mysql_url,
+	get_database_url(),
 	pool_pre_ping=True,
 )
 

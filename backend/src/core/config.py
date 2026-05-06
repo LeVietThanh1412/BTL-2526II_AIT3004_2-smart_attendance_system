@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     minio_endpoint: str = Field(alias="MINIO_ENDPOINT")
     minio_access_key: str = Field(alias="MINIO_ACCESS_KEY")
     minio_secret_key: str = Field(alias="MINIO_SECRET_KEY")
-    minio_bucket_name: str = Field(default="attendance-images", alias="MINIO_BUCKET")
+    minio_bucket: str = Field(default="attendance-images", alias="MINIO_BUCKET")
     minio_secure: bool = Field(default=False, alias="MINIO_SECURE")
     minio_public_base_url: str = Field(alias="MINIO_PUBLIC_BASE_URL")
 

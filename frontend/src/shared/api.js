@@ -20,37 +20,32 @@ apiClient.interceptors.response.use(
   }
 )
 
-const demoStatistics = {
-  total: 50,
-  missing: 8,
-  onTime: 38,
-  late: 4,
-}
-
-const demoActivities = [
-  { name: 'Trần Thị B', time: '08:15:22', date: '04/05/2026', status: 'Đi muộn', statusColor: 'red' },
-  { name: 'Lê Văn C', time: '07:55:10', date: '04/05/2026', status: 'Đúng giờ', statusColor: 'green' },
-  { name: 'Phạm Thu D', time: '07:45:00', date: '04/05/2026', status: 'Đúng giờ', statusColor: 'green' },
-  { name: 'Hoàng Văn E', time: '07:30:15', date: '04/05/2026', status: 'Đúng giờ', statusColor: 'green' },
-]
-
-const demoNotifications = {
-  count: 5,
-}
-
 // ============= ENDPOINTS THỐNG KÊ =============
 export const fetchStatistics = async () => {
-  return { ...demoStatistics }
+  const { data } = await apiClient.get('/dashboard/statistics')
+  return data
 }
 
 // ============= ENDPOINTS HOẠT ĐỘNG =============
-export const fetchRecentActivities = async () => {
-  return [...demoActivities]
+export const fetchRecentActivities = async (limit = 10) => {
+  const { data } = await apiClient.get('/dashboard/recent-activities', {
+    params: { limit },
+  })
+  return data?.activities ?? []
 }
 
 // ============= ENDPOINTS THÔNG BÁO =============
 export const fetchNotificationCount = async () => {
-  return { ...demoNotifications }
+  const { data } = await apiClient.get('/dashboard/notifications')
+  return data
+}
+
+// ============= ENDPOINTS LOG ĐIỂM DANH =============
+export const fetchAttendanceLogs = async (page = 1, pageSize = 20) => {
+  const { data } = await apiClient.get('/dashboard/attendance-logs', {
+    params: { page, page_size: pageSize },
+  })
+  return data
 }
 
 // ============= ENDPOINT ĐIỂM DANH (gửi ảnh base64 lên AI) =============
@@ -71,6 +66,20 @@ export const submitCheckIn = async (base64Image) => {
 // ============= ENDPOINT ĐĂNG KÝ NHÂN VIÊN =============
 export const registerEmployee = async (employeeData) => {
   const { data } = await apiClient.post('/members/register', employeeData)
+  return data
+}
+
+export const registerEmployeeVideo = async ({ student_id, name, videoFile }) => {
+  if (!videoFile) {
+    throw new Error('Thiếu file video để đăng ký.')
+  }
+
+  const formData = new FormData()
+  formData.append('student_id', student_id)
+  formData.append('name', name)
+  formData.append('video', videoFile, videoFile.name || 'register.webm')
+
+  const { data } = await apiClient.post('/members/register-video', formData)
   return data
 }
 

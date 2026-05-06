@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     app_version: str = "1.0.0"
     debug: bool = Field(default=False, alias="DEBUG")
 
+    default_camera_id: str = Field(default="cam_01", alias="DEFAULT_CAMERA_ID")
+    time_late: str = Field(default="08:00", alias="TIME_LATE")
+
     database_url: str | None = Field(default=None, alias="DATABASE_URL")
     mysql_url: str | None = Field(default=None, alias="MYSQL_URL")
     mysql_host: str = Field(default="mysql", alias="MYSQL_HOST")

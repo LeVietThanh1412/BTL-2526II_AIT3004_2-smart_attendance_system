@@ -24,6 +24,16 @@ jobs:
       contents: read
 
     steps:
+      - name: Validate Docker Hub secrets
+        run: |
+          if [ -z "${DOCKERHUB_USERNAME}" ] || [ -z "${DOCKERHUB_TOKEN}" ]; then
+            echo "Missing DOCKERHUB_USERNAME or DOCKERHUB_TOKEN. Add them in repo secrets."
+            exit 1
+          fi
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -53,6 +63,8 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
             ${{ env.DOCKERHUB_NAMESPACE }}/${{ env.BACKEND_IMAGE }}:${{ steps.meta.outputs.release_tag }}
             ${{ env.DOCKERHUB_NAMESPACE }}/${{ env.BACKEND_IMAGE }}:${{ steps.meta.outputs.sha_tag }}
@@ -63,6 +75,8 @@ jobs:
           context: ./worker
           file: ./worker/Dockerfile
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
             ${{ env.DOCKERHUB_NAMESPACE }}/${{ env.WORKER_IMAGE }}:${{ steps.meta.outputs.release_tag }}
             ${{ env.DOCKERHUB_NAMESPACE }}/${{ env.WORKER_IMAGE }}:${{ steps.meta.outputs.sha_tag }}
@@ -73,6 +87,8 @@ jobs:
           context: .
           file: ./nginx/Dockerfile
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
             ${{ env.DOCKERHUB_NAMESPACE }}/${{ env.FRONTEND_IMAGE }}:${{ steps.meta.outputs.release_tag }}
             ${{ env.DOCKERHUB_NAMESPACE }}/${{ env.FRONTEND_IMAGE }}:${{ steps.meta.outputs.sha_tag }}

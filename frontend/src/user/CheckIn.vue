@@ -1,49 +1,37 @@
 <template>
-    <!--
-        Trang dành cho NGƯỜI DÙNG (User) - chỉ hiển thị Camera quét mặt để điểm danh
-        KHÔNG có sidebar admin, giao diện full màn hình, đơn giản
-    -->
-    <div class="checkin-page">
-        <header class="checkin-header">
-            <div class="logo-area">
-                <div class="logo-icon">SA</div>
-                <div>
-                    <h1>Smart Attendance</h1>
-                    <p>Hệ thống điểm danh khuôn mặt</p>
-                </div>
-            </div>
-            <div class="datetime-box">
-                <span>📅 {{ currentDate }}</span>
-                <span>⏱️ {{ currentTime }}</span>
-            </div>
-        </header>
+    <div class="app-container">
+        <AdminSidebar />
 
-        <main class="checkin-main">
-            <div class="camera-card">
-                <div class="card-header">
-                    <h2>Điểm danh bằng AI</h2>
-                    <div class="status-badge live">{{ isProcessing ? 'Đang xử lý...' : 'Sẵn sàng' }}</div>
-                </div>
+        <main class="content">
+            <TopHeader title="Điểm danh hằng ngày" />
 
-                <div class="video-area">
-                    <video ref="videoEl" autoplay playsinline class="video-stream"></video>
-                    <canvas ref="canvasEl" style="display: none;"></canvas>
-                    <div class="video-live-tag">LIVE</div>
-                    <div class="face-frame"></div>
-                    <div class="video-camera-info">HD Camera 01</div>
-                </div>
-
-                <button class="checkin-btn" :disabled="isProcessing" @click="handleCheckIn">
-                    <span>👤</span>
-                    {{ isProcessing ? 'Đang nhận diện...' : 'Bắt đầu điểm danh' }}
-                </button>
-
-                <div v-if="result" class="result-area" :class="{ error: result.isError }">
-                    <div class="result-info">
-                        <h4>{{ result.userName }}</h4>
-                        <p>{{ result.checkInTime }}</p>
+            <div class="checkin-main">
+                <div class="camera-card">
+                    <div class="card-header">
+                        <h2>Điểm danh bằng AI</h2>
+                        <div class="status-badge live">{{ isProcessing ? 'Đang xử lý...' : 'Sẵn sàng' }}</div>
                     </div>
-                    <div class="result-status">{{ result.statusText }}</div>
+
+                    <div class="video-area">
+                        <video ref="videoEl" autoplay playsinline class="video-stream"></video>
+                        <canvas ref="canvasEl" style="display: none;"></canvas>
+                        <div class="video-live-tag">TRỰC TIẾP</div>
+                        <div class="face-frame"></div>
+                        <div class="video-camera-info">Camera HD 01</div>
+                    </div>
+
+                    <button class="checkin-btn" :disabled="isProcessing" @click="handleCheckIn">
+                        <span>👤</span>
+                        {{ isProcessing ? 'Đang nhận diện...' : 'Bắt đầu điểm danh' }}
+                    </button>
+
+                    <div v-if="result" class="result-area" :class="{ error: result.isError }">
+                        <div class="result-info">
+                            <h4>{{ result.userName }}</h4>
+                            <p>{{ result.checkInTime }}</p>
+                        </div>
+                        <div class="result-status">{{ result.statusText }}</div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -52,18 +40,17 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import AdminSidebar from '../admin/AdminSidebar.vue'
+import TopHeader from '../admin/TopHeader.vue'
 import { submitCheckIn } from '../shared/api'
-import { formatDate, formatTime, formatShortDate } from '../shared/dateUtils'
+import { formatTime, formatShortDate } from '../shared/dateUtils'
 
 const videoEl = ref(null)
 const canvasEl = ref(null)
 const isProcessing = ref(false)
 const result = ref(null)
-const currentDate = ref(formatDate())
-const currentTime = ref(formatTime())
 
 let videoStream = null
-let timerId = null
 
 // === Bật webcam khi vào trang ===
 const startWebcam = async () => {
@@ -106,96 +93,48 @@ const handleCheckIn = async () => {
             isError: res.status !== 'success',
         }
     } catch (err) {
-        console.error('[v0] Lỗi gửi điểm danh, dùng dữ liệu giả lập:', err.message)
+        console.error('[v0] Lỗi gửi điểm danh:', err.message)
         const now = new Date()
+        const fallbackMessage = err?.response?.data?.detail || 'Không thể kết nối máy chủ điểm danh.'
         result.value = {
-            userName: 'Nguyễn Đức Mạnh',
+            userName: 'Không thể nhận diện',
             checkInTime: `${formatTime(now)} - ${formatShortDate(now)}`,
-            statusText: 'Điểm danh thành công! Đúng giờ ✓',
+            statusText: fallbackMessage,
+            isError: true,
         }
     } finally {
         isProcessing.value = false
     }
 }
 
-const updateDateTime = () => {
-    const now = new Date()
-    currentDate.value = formatDate(now)
-    currentTime.value = formatTime(now)
-}
-
 onMounted(() => {
     startWebcam()
-    timerId = setInterval(updateDateTime, 1000)
 })
 
 onUnmounted(() => {
     if (videoStream) videoStream.getTracks().forEach((t) => t.stop())
-    if (timerId) clearInterval(timerId)
 })
 </script>
 
 <style scoped>
-.checkin-page {
+.app-container {
+    display: flex;
+    width: 100%;
     min-height: 100vh;
-    background: var(--bg-color);
-    display: flex;
-    flex-direction: column;
+    overflow: hidden;
 }
 
-.checkin-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 40px;
-    background: var(--card-color);
-    border-bottom: 1px solid var(--border-color);
-}
-
-.logo-area {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.logo-icon {
-    width: 44px;
-    height: 44px;
-    background-color: var(--primary-color);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: bold;
-    font-size: 18px;
-}
-
-.logo-area h1 {
-    margin: 0;
-    font-size: 18px;
-}
-
-.logo-area p {
-    margin: 0;
-    color: var(--text-sub);
-    font-size: 12px;
-}
-
-.datetime-box {
-    display: flex;
-    gap: 20px;
-    color: var(--text-sub);
-    font-size: 14px;
-    font-weight: 500;
+main.content {
+    flex-grow: 1;
+    padding: 25px 30px;
+    overflow-y: auto;
 }
 
 .checkin-main {
-    flex-grow: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 40px 20px;
+    padding: 20px 0 40px;
 }
 
 .camera-card {
@@ -356,5 +295,20 @@ onUnmounted(() => {
     color: var(--success-color);
     font-size: 12px;
     font-weight: 600;
+}
+
+.result-area.error .result-status {
+    background-color: #fee2e2;
+    color: var(--danger-color);
+}
+
+@media (max-width: 900px) {
+    .app-container {
+        flex-direction: column;
+    }
+
+    main.content {
+        padding: 18px;
+    }
 }
 </style>

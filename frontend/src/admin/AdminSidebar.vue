@@ -4,8 +4,8 @@
             <div class="logo-area">
                 <div class="logo-icon">SA</div>
                 <div>
-                    <h2 style="margin:0; font-size:16px;">Smart Attendance</h2>
-                    <p style="margin:0; color:var(--text-sub); font-size:10px;">AI Face Recognition</p>
+                    <h2 style="margin:0; font-size:16px;">Điểm danh thông minh</h2>
+                    <p style="margin:0; color:var(--text-sub); font-size:10px;">Nhận diện khuôn mặt AI</p>
                 </div>
             </div>
 

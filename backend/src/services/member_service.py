@@ -7,7 +7,7 @@ from celery.exceptions import TimeoutError as CeleryTimeoutError
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from backend.src.core.celery_client import extract_face_embedding_task
+from src.core.celery_client import extract_face_embedding_task
 from src.core.config import settings
 from src.core.qdrant_client import ensure_qdrant_collection, upsert_embedding
 from src.models.face_embedding import FaceEmbedding
@@ -102,7 +102,7 @@ class MemberService:
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Error processing video: {exc}",
+                detail=f"Lỗi xử lý video: {exc}",
             ) from exc
 
         embeddings: List[np.ndarray] = []
@@ -176,7 +176,7 @@ class MemberService:
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Cannot upsert embedding to Qdrant: {exc}",
+                detail=f"Không thể lưu vector khuôn mặt vào Qdrant: {exc}",
             ) from exc
 
         if user.embedding is None:
@@ -220,7 +220,7 @@ class MemberService:
         if len(images_base64) < settings.min_registration_images:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"At least {settings.min_registration_images} images are required for registration.",
+                detail=f"Cần ít nhất {settings.min_registration_images} ảnh để đăng ký.",
             )
 
         stored_image_paths, embeddings = cls._process_images_batch(
@@ -231,7 +231,7 @@ class MemberService:
         if not embeddings:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="No valid face embedding generated from registration images.",
+                detail="Không trích xuất được embedding khuôn mặt từ các ảnh đăng ký. Kiểm tra lại ảnh chụp.",
             )
 
         master_embedding = np.mean(np.stack(embeddings), axis=0)
@@ -288,7 +288,7 @@ class MemberService:
         if not embeddings:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="No valid face embedding generated from video frames.",
+                detail="Không trích xuất được embedding khuôn mặt từ video. Đảm bảo khuôn mặt hiện rõ trong video.",
             )
 
         master_embedding = np.mean(np.stack(embeddings), axis=0)

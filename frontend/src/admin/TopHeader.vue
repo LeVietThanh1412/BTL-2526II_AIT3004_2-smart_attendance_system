@@ -48,11 +48,10 @@ const updateDateTime = () => {
 const loadNotifications = async () => {
     try {
         const data = await fetchNotificationCount()
-        notificationCount.value = data?.count ?? 0
+        notificationCount.value = Number(data?.count ?? 0)
     } catch (err) {
         console.error('[v0] Lỗi tải thông báo:', err.message)
-        // Giả lập 5 thông báo nếu Backend chưa có
-        notificationCount.value = 5
+        notificationCount.value = 0
     }
 }
 

@@ -1,3 +1,5 @@
+import os
+
 from src.face_engine import FaceEngine
 from src.celery_app import celery_app
 
@@ -27,13 +29,17 @@ def extract_face_embedding_task(image_url: str) -> dict:
 @celery_app.task(name="recognize_face_task")
 def recognize_face_task(image_url: str) -> dict:
 	if not image_url:
+		threshold = float(os.getenv("FACE_MATCH_THRESHOLD", "0.6"))
 		return {
 			"status": "failed",
 			"student_id": "Unknown",
-			"message": "Missing image URL.",
+			"score": 0.0,
+			"threshold": threshold,
+			"message": "Thiếu đường dẫn ảnh.",
 		}
 
 	try:
+		threshold = float(os.getenv("FACE_MATCH_THRESHOLD", "0.6"))
 		engine = FaceEngine()
 		vector = engine.extract_vector(image_url)
 		match = engine.search_qdrant(vector)
@@ -41,21 +47,28 @@ def recognize_face_task(image_url: str) -> dict:
 		score = float(match.get("score", 0.0))
 		student_id = str(match.get("student_id", "Unknown"))
 
-		if score > 0.6 and student_id != "Unknown":
+		if score > threshold and student_id != "Unknown":
 			return {
 				"status": "success",
 				"student_id": student_id,
-				"message": f"Face matched with score {score:.4f}.",
+				"score": score,
+				"threshold": threshold,
+				"message": f"Nhận diện thành công (độ tương đồng {score:.4f}).",
 			}
 
 		return {
 			"status": "failed",
 			"student_id": "Unknown",
-			"message": f"No confident match found (score={score:.4f}).",
+			"score": score,
+			"threshold": threshold,
+			"message": f"Không tìm thấy khuôn mặt phù hợp (độ tương đồng {score:.4f}).",
 		}
 	except Exception as exc:
+		threshold = float(os.getenv("FACE_MATCH_THRESHOLD", "0.6"))
 		return {
 			"status": "failed",
 			"student_id": "Unknown",
-			"message": f"Recognition error: {exc}",
+			"score": 0.0,
+			"threshold": threshold,
+			"message": f"Lỗi nhận diện: {exc}",
 		}

@@ -60,7 +60,7 @@ async def register_member_video(
     if not video.content_type or not video.content_type.startswith("video/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Uploaded file must be a video file.",
+            detail="Tệp tải lên phải là video (mp4, webm, mov, ...).",
         )
 
     video_bytes = await video.read()

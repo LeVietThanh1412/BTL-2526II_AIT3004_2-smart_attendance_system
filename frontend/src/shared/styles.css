@@ -1,0 +1,42 @@
+/* =====================================================================
+   Biến màu & font dùng chung cho toàn ứng dụng (Design Token)
+   ===================================================================== */
+:root {
+    --bg-color: #f7f9fc;
+    --card-color: #ffffff;
+    --text-main: #2a3a4e;
+    --text-sub: #7b8ea3;
+    --primary-color: #4361ee;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --border-color: #e2e8f0;
+    --font-main: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-main);
+    background-color: var(--bg-color);
+    margin: 0;
+    color: var(--text-main);
+}
+
+/* Lớp thẻ chung */
+.panel-card {
+    background-color: var(--card-color);
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.01);
+}
+
+.panel-card h2 {
+    margin: 0 0 15px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-main);
+}

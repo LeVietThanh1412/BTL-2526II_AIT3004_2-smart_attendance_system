@@ -8,7 +8,7 @@
             <div class="dashboard-grid">
                 <div class="right-main-column">
                     <div class="stacked-stats-grid">
-                        <StatCard color="blue" icon="👥" label="Tổng nhân viên" :value="stats.total ?? '--'" />
+                        <StatCard color="blue" icon="👥" label="Tổng sinh viên" :value="stats.total ?? '--'" />
                         <StatCard color="yellow" icon="⏳" label="Chưa điểm danh" :value="stats.missing ?? '--'" />
                         <StatCard color="green" icon="✓" label="Đúng giờ" :value="stats.onTime ?? '--'" />
                         <StatCard color="red" icon="✗" label="Đi muộn" :value="stats.late ?? '--'" />

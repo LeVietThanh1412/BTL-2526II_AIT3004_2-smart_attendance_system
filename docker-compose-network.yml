@@ -1,0 +1,144 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - attendance_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - attendance_net
+
+  qdrant:
+    image: qdrant/qdrant
+    container_name: qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - attendance_net
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - attendance_net
+
+  backend:
+    image: levietthanh1412/attendance-backend:v1
+    container_name: backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      qdrant:
+        condition: service_started
+      minio:
+        condition: service_started
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      QDRANT_URL: ${QDRANT_URL}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_SECURE: ${MINIO_SECURE}
+      MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL}
+      FACE_MATCH_THRESHOLD: ${FACE_MATCH_THRESHOLD}
+      MIN_REGISTRATION_IMAGES: ${MIN_REGISTRATION_IMAGES}
+      DEEPFACE_MODEL_NAME: ${DEEPFACE_MODEL_NAME:-Facenet}
+      TIME_LATE: ${TIME_LATE}
+      DEFAULT_CAMERA_ID: ${DEFAULT_CAMERA_ID:-cam_01}
+    expose:
+      - "8000"
+    networks:
+      - attendance_net
+
+  worker:
+    image: levietthanh1412/attendance-worker:v1
+    container_name: worker
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_started
+      qdrant:
+        condition: service_started
+      minio:
+        condition: service_started
+    environment:
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      QDRANT_URL: ${QDRANT_URL}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_SECURE: ${MINIO_SECURE}
+      MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL}
+      FACE_MATCH_THRESHOLD: ${FACE_MATCH_THRESHOLD}
+      DEEPFACE_MODEL_NAME: ${DEEPFACE_MODEL_NAME:-Facenet}
+    networks:
+      - attendance_net
+    volumes:
+      - deepface_data:/root/.deepface
+
+  nginx:
+    image: levietthanh1412/attendance-nginx:v1
+    container_name: nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - attendance_net
+
+networks:
+  attendance_net:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  qdrant_data:
+  minio_data:
+  deepface_data:

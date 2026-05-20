@@ -44,7 +44,7 @@ def recognize_face_task(image_url: str, student_id: str = "") -> dict:
 	Returns:
 		dict with status, student_id, score, threshold, matched, reason, message
 	"""
-	threshold = float(os.getenv("FACE_MATCH_THRESHOLD", "0.6"))
+	threshold = float(os.getenv("FACE_MATCH_THRESHOLD", "0.68"))
 
 	if not image_url:
 		return {

@@ -22,7 +22,7 @@ class FaceEngine:
         self.detector_backend = os.getenv("DETECTOR_BACKEND", "mtcnn")
 
         # Configurable thresholds
-        self.match_threshold = float(os.getenv("FACE_MATCH_THRESHOLD", "0.6"))
+        self.match_threshold = float(os.getenv("FACE_MATCH_THRESHOLD", "0.68"))
         self.detection_conf = float(os.getenv("DETECTION_CONF", "0.5"))
         self.blur_threshold = float(os.getenv("IMAGE_BLUR_THRESHOLD", "35.0"))
         self.brightness_min = float(os.getenv("IMAGE_BRIGHTNESS_MIN", "40.0"))

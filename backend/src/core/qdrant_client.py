@@ -64,3 +64,35 @@ def upsert_embedding(
             )
         ],
     )
+
+
+def has_vectors_for_student(student_id: str) -> bool:
+    """
+    Check if a student has any face embedding vectors in Qdrant.
+
+    Kiem tra xem sinh vien co vector khuon mat nao trong Qdrant khong.
+
+    Args:
+        student_id: Student ID to check
+
+    Returns:
+        True if at least one vector exists for the student
+    """
+    try:
+        results, _ = qdrant_client.scroll(
+            collection_name=settings.qdrant_collection,
+            scroll_filter=qmodels.Filter(
+                must=[
+                    qmodels.FieldCondition(
+                        key="student_id",
+                        match=qmodels.MatchValue(value=student_id),
+                    )
+                ]
+            ),
+            limit=1,
+            with_payload=False,
+            with_vectors=False,
+        )
+        return len(results) > 0
+    except Exception:
+        return False

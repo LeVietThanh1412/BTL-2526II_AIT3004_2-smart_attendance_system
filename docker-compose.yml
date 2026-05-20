@@ -117,6 +117,7 @@ services:
       MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL}
       FACE_MATCH_THRESHOLD: ${FACE_MATCH_THRESHOLD}
       DEEPFACE_MODEL_NAME: ${DEEPFACE_MODEL_NAME:-Facenet}
+      FACE_DETECTOR_BACKEND: ${FACE_DETECTOR_BACKEND:-mtcnn}
     networks:
       - attendance_net
     volumes:

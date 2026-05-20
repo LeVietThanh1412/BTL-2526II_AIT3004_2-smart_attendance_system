@@ -18,62 +18,102 @@ Hệ thống được xây dựng trên kiến trúc Microservices để tối �
 
 ## Cấu trúc thư mục
 ```
-/
+.
 ├── backend
 │   ├── Dockerfile
 │   ├── README.md
 │   ├── requirements.txt
 │   └── src
 │       ├── api
+│       │   ├── __init__.py
 │       │   └── v1
 │       │       ├── attendance.py
 │       │       ├── auth.py
 │       │       ├── dashboard.py
+│       │       ├── __init__.py
 │       │       └── members.py
 │       ├── core
 │       │   ├── celery_client.py
 │       │   ├── config.py
+│       │   ├── __init__.py
 │       │   ├── qdrant_client.py
 │       │   └── security.py
 │       ├── database
-│       │   └── Base.py
+│       │   ├── Base.py
+│       │   └── __init__.py
+│       ├── __init__.py
 │       ├── main.py
 │       ├── models
 │       │   ├── attendance.py
 │       │   ├── face_embedding.py
+│       │   ├── __init__.py
 │       │   └── user.py
 │       ├── schemas
 │       │   ├── attendance.py
+│       │   ├── __init__.py
 │       │   └── user.py
 │       ├── services
+│       │   ├── __init__.py
 │       │   ├── member_service.py
 │       │   ├── redis_query.py
 │       │   └── storages.py
 │       └── utils
+│           ├── __init__.py
 │           └── video_processor.py
+├── docker-compose-network.yml
+├── docker-compose.yml
+├── document.md
 ├── frontend
 │   ├── Dockerfile
 │   ├── index.html
 │   ├── package.json
+│   ├── pnpm-lock.yaml
+│   ├── public
+│   │   ├── favicon.ico
+│   │   └── manifest.json
 │   ├── src
-│   │   ├── admin/
-│   │   ├── user/
-│   │   ├── shared/
+│   │   ├── admin
+│   │   │   ├── AdminSidebar.vue
+│   │   │   ├── Dashbroad.vue
+│   │   │   ├── pages
+│   │   │   │   ├── AttendanceLogs.vue
+│   │   │   │   ├── Dashboard.vue
+│   │   │   │   └── RegisterAttendance.vue
+│   │   │   ├── RecentActivity.vue
+│   │   │   ├── StatCard.vue
+│   │   │   └── TopHeader.vue
 │   │   ├── App.vue
-│   │   └── main.js
+│   │   ├── main.js
+│   │   ├── router.js
+│   │   ├── shared
+│   │   │   ├── api.js
+│   │   │   ├── dateUtils.js
+│   │   │   └── styles.css
+│   │   └── user
+│   │       └── CheckIn.vue
 │   └── vite.config.js
+├── ke_hoach_trien_khai.md
 ├── nginx
 │   ├── Dockerfile
 │   └── nginx.conf
-├── worker
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── src
-│       ├── celery_app.py
-│       ├── face_engine.py
-│       └── tasks.py
-├── docker-compose.yml
-└── README.md
+├── README.md
+├── todo.txt
+├── uml
+│   ├── Activity_diem_danh.png
+│   ├── Component.png
+│   ├── Deployment.png
+│   ├── sequency.png
+│   └── usecase.png
+└── worker
+    ├── Dockerfile
+    ├── requirements.txt
+    └── src
+        ├── celery_app.py
+        ├── face_engine.py
+        ├── __init__.py
+        └── tasks.py
+
+22 directories, 72 files
 ```
 
 

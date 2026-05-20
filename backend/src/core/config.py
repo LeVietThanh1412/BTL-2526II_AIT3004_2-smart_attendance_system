@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     deepface_model_name: str = Field(default="Facenet", alias="DEEPFACE_MODEL_NAME")
     face_similarity_threshold: float = Field(default=0.6, alias="FACE_MATCH_THRESHOLD")
     min_registration_images: int = Field(default=3, alias="MIN_REGISTRATION_IMAGES")
+    detection_confidence: float = Field(default=0.5, alias="DETECTION_CONF")
+
+    # Image quality thresholds
+    image_blur_threshold: float = Field(default=35.0, alias="IMAGE_BLUR_THRESHOLD")
+    image_brightness_min: float = Field(default=40.0, alias="IMAGE_BRIGHTNESS_MIN")
+    image_brightness_max: float = Field(default=250.0, alias="IMAGE_BRIGHTNESS_MAX")
 
     model_config = SettingsConfigDict(
         env_file=".env",

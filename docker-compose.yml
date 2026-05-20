@@ -9,7 +9,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -86,6 +86,11 @@ services:
       FACE_MATCH_THRESHOLD: ${FACE_MATCH_THRESHOLD}
       MIN_REGISTRATION_IMAGES: ${MIN_REGISTRATION_IMAGES}
       DEEPFACE_MODEL_NAME: ${DEEPFACE_MODEL_NAME:-Facenet}
+      DETECTOR_BACKEND: ${DETECTOR_BACKEND:-mtcnn}
+      DETECTION_CONF: ${DETECTION_CONF:-0.5}
+      IMAGE_BLUR_THRESHOLD: ${IMAGE_BLUR_THRESHOLD:-35.0}
+      IMAGE_BRIGHTNESS_MIN: ${IMAGE_BRIGHTNESS_MIN:-40.0}
+      IMAGE_BRIGHTNESS_MAX: ${IMAGE_BRIGHTNESS_MAX:-250.0}
       TIME_LATE: ${TIME_LATE}
       DEFAULT_CAMERA_ID: ${DEFAULT_CAMERA_ID:-cam_01}
     expose:
@@ -117,6 +122,11 @@ services:
       MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL}
       FACE_MATCH_THRESHOLD: ${FACE_MATCH_THRESHOLD}
       DEEPFACE_MODEL_NAME: ${DEEPFACE_MODEL_NAME:-Facenet}
+      DETECTOR_BACKEND: ${DETECTOR_BACKEND:-mtcnn}
+      DETECTION_CONF: ${DETECTION_CONF:-0.5}
+      IMAGE_BLUR_THRESHOLD: ${IMAGE_BLUR_THRESHOLD:-35.0}
+      IMAGE_BRIGHTNESS_MIN: ${IMAGE_BRIGHTNESS_MIN:-40.0}
+      IMAGE_BRIGHTNESS_MAX: ${IMAGE_BRIGHTNESS_MAX:-250.0}
     networks:
       - attendance_net
     volumes:
@@ -131,7 +141,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "80:80"
+      - "8080:80"
     networks:
       - attendance_net
 

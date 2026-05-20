@@ -6,3 +6,5 @@ requests==2.32.3
 qdrant-client==1.12.1
 deepface==0.0.93
 tf-keras
+retina-face
+numpy

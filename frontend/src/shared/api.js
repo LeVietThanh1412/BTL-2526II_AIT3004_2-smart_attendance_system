@@ -49,7 +49,11 @@ export const fetchAttendanceLogs = async (page = 1, pageSize = 20) => {
 }
 
 // ============= ENDPOINT ĐIỂM DANH (gửi ảnh base64 lên AI) =============
-export const submitCheckIn = async (base64Image) => {
+export const submitCheckIn = async ({ base64Image, student_id, camera_id = 'cam_01' }) => {
+  if (!student_id) {
+    throw new Error('Thiếu mã sinh viên để điểm danh.')
+  }
+
   const imageSource = base64Image.startsWith('data:')
     ? base64Image
     : `data:image/jpeg;base64,${base64Image}`
@@ -57,7 +61,8 @@ export const submitCheckIn = async (base64Image) => {
   const formData = new FormData()
 
   formData.append('image', imageBlob, 'capture.jpg')
-  formData.append('camera_id', 'cam_01')
+  formData.append('camera_id', camera_id)
+  formData.append('student_id', student_id)
 
   const { data } = await apiClient.post('/attendance/check-in', formData)
   return data

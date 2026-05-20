@@ -20,7 +20,24 @@
                         <div class="video-camera-info">Camera HD 01</div>
                     </div>
 
-                    <button class="checkin-btn" :disabled="isProcessing" @click="handleCheckIn">
+                    <div class="input-group">
+                        <label for="studentId">Mã sinh viên</label>
+                        <input
+                            id="studentId"
+                            v-model="studentId"
+                            class="input-field"
+                            :class="{ invalid: studentIdError }"
+                            placeholder="VD: 24022454"
+                            @input="studentIdError = ''"
+                        />
+                        <p v-if="studentIdError" class="input-error">{{ studentIdError }}</p>
+                    </div>
+
+                    <button
+                        class="checkin-btn"
+                        :disabled="isProcessing || !isStudentIdValid"
+                        @click="handleCheckIn"
+                    >
                         <span>👤</span>
                         {{ isProcessing ? 'Đang nhận diện...' : 'Bắt đầu điểm danh' }}
                     </button>
@@ -29,6 +46,7 @@
                         <div class="result-info">
                             <h4>{{ result.userName }}</h4>
                             <p>{{ result.checkInTime }}</p>
+                            <p v-if="result.scoreText" class="result-score">{{ result.scoreText }}</p>
                         </div>
                         <div class="result-status">{{ result.statusText }}</div>
                     </div>
@@ -39,7 +57,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AdminSidebar from '../admin/AdminSidebar.vue'
 import TopHeader from '../admin/TopHeader.vue'
 import { submitCheckIn } from '../shared/api'
@@ -49,6 +67,10 @@ const videoEl = ref(null)
 const canvasEl = ref(null)
 const isProcessing = ref(false)
 const result = ref(null)
+const studentId = ref('')
+const studentIdError = ref('')
+
+const isStudentIdValid = computed(() => studentId.value.trim().length >= 3)
 
 let videoStream = null
 
@@ -71,8 +93,24 @@ const startWebcam = async () => {
 }
 
 // === Chụp ảnh & gửi backend AI ===
+const validateStudentId = () => {
+    const value = studentId.value.trim()
+    if (!value) {
+        studentIdError.value = 'Vui lòng nhập mã sinh viên.'
+        return false
+    }
+    if (value.length < 3) {
+        studentIdError.value = 'Mã sinh viên phải có ít nhất 3 ký tự.'
+        return false
+    }
+    studentIdError.value = ''
+    return true
+}
+
 const handleCheckIn = async () => {
     if (!videoEl.value || !canvasEl.value) return
+    if (!validateStudentId()) return
+
     isProcessing.value = true
     result.value = null
 
@@ -82,15 +120,30 @@ const handleCheckIn = async () => {
     canvas.height = video.videoHeight
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height)
     const base64 = canvas.toDataURL('image/jpeg', 0.9)
+    const normalizedStudentId = studentId.value.trim()
 
     try {
-        const res = await submitCheckIn(base64)
+        const res = await submitCheckIn({
+            base64Image: base64,
+            student_id: normalizedStudentId,
+        })
         const now = new Date()
+        const matched = Boolean(res?.matched)
+        const matchScore = Number(res?.match_score ?? res?.score ?? 0)
+        const threshold = Number(res?.threshold ?? 0)
+        const hasScore = Number.isFinite(matchScore) && Number.isFinite(threshold)
+        const scoreText = hasScore
+            ? `Độ tương đồng: ${matchScore.toFixed(4)} (ngưỡng ${threshold.toFixed(4)})`
+            : ''
         result.value = {
-            userName: res.student_id ? `Mã SV: ${res.student_id}` : 'Đã nhận diện khuôn mặt',
+            userName: res.student_id ? `Mã SV: ${res.student_id}` : `Mã SV: ${normalizedStudentId}`,
             checkInTime: `${formatTime(now)} - ${formatShortDate(now)}`,
-            statusText: res.message || (res.status === 'success' ? 'Điểm danh thành công!' : 'Điểm danh thất bại!'),
-            isError: res.status !== 'success',
+            statusText:
+                res.reason ||
+                res.message ||
+                (matched ? 'Điểm danh thành công!' : 'Điểm danh thất bại!'),
+            isError: !matched,
+            scoreText,
         }
     } catch (err) {
         console.error('[v0] Lỗi gửi điểm danh:', err.message)
@@ -101,6 +154,7 @@ const handleCheckIn = async () => {
             checkInTime: `${formatTime(now)} - ${formatShortDate(now)}`,
             statusText: fallbackMessage,
             isError: true,
+            scoreText: '',
         }
     } finally {
         isProcessing.value = false
@@ -230,6 +284,44 @@ main.content {
     border-radius: 4px;
 }
 
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.input-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.input-field {
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-field:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 109, 245, 0.15);
+}
+
+.input-field.invalid {
+    border-color: var(--danger-color);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.input-error {
+    color: var(--danger-color);
+    font-size: 12px;
+    margin: 0;
+}
+
 .checkin-btn {
     width: 100%;
     background-color: var(--primary-color);
@@ -286,6 +378,11 @@ main.content {
     margin: 0;
     color: var(--text-sub);
     font-size: 13px;
+}
+
+.result-score {
+    margin-top: 6px;
+    font-size: 12px;
 }
 
 .result-status {

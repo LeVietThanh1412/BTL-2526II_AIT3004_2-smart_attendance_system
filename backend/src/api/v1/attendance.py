@@ -16,6 +16,7 @@ router = APIRouter(prefix="/attendance", tags=["attendance"])
 @router.post("/check-in", response_model=AttendanceCheckResponse)
 async def check_in(
     image: UploadFile = File(...),
+    student_id: str = Form(...),
     camera_id: str = Form(default=settings.default_camera_id),
     db: Session = Depends(get_db),
 ):
@@ -27,6 +28,26 @@ async def check_in(
     2. Upload to MinIO storage
     3. Send to worker for face recognition
     4. Return check-in result"""
+
+    student_id = str(student_id or "").strip()
+    if not student_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Thiếu mã sinh viên. Vui lòng nhập mã sinh viên trước khi điểm danh.",
+        )
+
+    user = db.query(User).filter(User.student_id == student_id).first()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy mã sinh viên trong hệ thống.",
+        )
+
+    if user.embedding is None or not user.embedding.qdrant_vector_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Sinh viên chưa có vector khuôn mặt để đối chiếu.",
+        )
 
     if not image.content_type or not image.content_type.startswith("image/"):
         raise HTTPException(
@@ -40,7 +61,7 @@ async def check_in(
         filename=image.filename or "capture.jpg",
     )
 
-    async_result = recognize_face_task.delay(minio_url)
+    async_result = recognize_face_task.delay(minio_url, student_id)
 
     try:
         worker_result = async_result.get(timeout=5)
@@ -58,32 +79,28 @@ async def check_in(
     if not isinstance(worker_result, dict):
         worker_result = {
             "status": "failed",
-            "student_id": "",
-            "score": 0.0,
-            "message": str(worker_result),
+            "student_id": student_id,
+            "match_score": 0.0,
+            "threshold": float(settings.face_similarity_threshold),
+            "matched": False,
+            "reason": str(worker_result),
         }
 
     status_value = str(worker_result.get("status", "failed")).lower()
-    student_id = str(worker_result.get("student_id", "")).strip()
-    score = float(worker_result.get("score") or 0.0)
+    match_score = float(worker_result.get("match_score") or worker_result.get("score") or 0.0)
+    threshold = float(worker_result.get("threshold") or settings.face_similarity_threshold)
+    matched = bool(worker_result.get("matched"))
+    if "matched" not in worker_result:
+        matched = status_value == "success"
+    reason = str(worker_result.get("reason") or worker_result.get("message") or "")
 
-    if status_value == "success":
-        status_enum = AttendanceStatus.success
-    elif status_value == "unknown":
-        status_enum = AttendanceStatus.unknown
-    else:
-        status_enum = AttendanceStatus.failed
+    status_enum = AttendanceStatus.success if matched else AttendanceStatus.failed
 
-    user = None
-    if student_id and student_id.lower() != "unknown":
-        user = db.query(User).filter(User.student_id == student_id).first()
-        if user is None and status_enum == AttendanceStatus.success:
-            status_enum = AttendanceStatus.unknown
-            status_value = "unknown"
+    status_value = "success" if matched else "failed"
 
     attendance = Attendance(
         user_id=user.id if user else None,
-        confidence_score=score,
+        confidence_score=match_score,
         camera_id=camera_id,
         status=status_enum,
     )
@@ -101,7 +118,11 @@ async def check_in(
     return AttendanceCheckResponse(
         status=status_value,
         student_id=student_id,
-        message=str(worker_result.get("message", f"Điểm danh hoàn tất từ camera {camera_id}.")),
+        match_score=match_score,
+        threshold=threshold,
+        matched=matched,
+        reason=reason or f"Điểm danh hoàn tất từ camera {camera_id}.",
+        message=str(worker_result.get("message", "")) or None,
     )
 
 

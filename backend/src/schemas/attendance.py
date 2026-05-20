@@ -4,13 +4,18 @@ from src.core.config import settings
 
 
 class AttendanceCheckRequest(BaseModel):
+	student_id: str = Field(min_length=3, max_length=30)
 	camera_id: str = Field(default=settings.default_camera_id, min_length=1, max_length=50)
 
 
 class AttendanceCheckResponse(BaseModel):
 	status: str
 	student_id: str
-	message: str
+	match_score: float
+	threshold: float
+	matched: bool
+	reason: str
+	message: str | None = None
 
 
 class AttendanceVerifyRequest(BaseModel):

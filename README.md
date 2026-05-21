@@ -111,6 +111,8 @@ docker compose up -d
 docker compose logs -f
 ```
 
+Nếu máy bạn đã dùng cổng `3306`, hãy đổi `MYSQL_PORT` trong file `.env` sang một cổng khác, ví dụ `3307`, rồi chạy lại `docker compose up -d`.
+
 ## Hướng dẫn triển khai (Deployment)
 Hệ thống đã được đóng gói dưới dạng Docker Images trên Docker Hub. Để chạy toàn bộ hệ thống mà không cần cài đặt môi trường code, chỉ cần thực hiện các bước sau:
 

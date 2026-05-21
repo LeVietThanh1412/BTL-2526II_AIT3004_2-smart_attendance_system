@@ -35,11 +35,11 @@ Toàn bộ hệ thống được xây dựng theo kiến trúc **microservices**
 ## 3. Checklist báo cáo cuối kỳ
 
 Để đảm bảo đáp ứng đầy đủ rubric, hệ thống trước khi demo cần vượt qua các bài test sau:
-- [ ] **Môi trường**: Chạy `docker-compose up -d` thành công không lỗi, các containers ở trạng thái `Up` và `Healthy`.
-- [ ] **Chức năng Đăng ký (Register)**: Camera chụp ảnh -> Gửi lên API -> Lưu MinIO -> AI Worker lấy đặc trưng lưu Qdrant -> Log MySQL.
-- [ ] **Chức năng Điểm danh (Attendance)**: Nhận diện theo luồng (hoặc upload frame) -> Trả kết quả (Trùng khớp / Không trùng khớp) với thời gian trễ lý tưởng < 2-3 giây.
-- [ ] **Lưu trữ chuẩn**: Chứng minh được dữ liệu thực sự nằm ở 3 nơi thông qua các UI quản trị (GUI Database Client cho MySQL, Qdrant Dashboard `localhost:6333/dashboard`, MinIO Console `localhost:9001`).
-- [ ] **Xử lý bất đồng bộ**: Minh họa được luồng hệ thống Backend không bị block khi quét AI nhờ cơ chế hàng đợi của Celery & Redis.
+- [x] **Môi trường**: Chạy `docker-compose up -d` thành công không lỗi, các containers ở trạng thái `Up` và `Healthy`.
+- [x] **Chức năng Đăng ký (Register)**: Camera chụp ảnh -> Gửi lên API -> Lưu MinIO -> AI Worker lấy đặc trưng lưu Qdrant -> Log MySQL.
+- [x] **Chức năng Điểm danh (Attendance)**: Nhận diện theo luồng (hoặc upload frame) -> Trả kết quả (Trùng khớp / Không trùng khớp) với thời gian trễ lý tưởng < 2-3 giây.
+- [x] **Lưu trữ chuẩn**: Chứng minh được dữ liệu thực sự nằm ở 3 nơi thông qua các UI quản trị (GUI Database Client cho MySQL, Qdrant Dashboard `localhost:6333/dashboard`, MinIO Console `localhost:9001`).
+- [x] **Xử lý bất đồng bộ**: Minh họa được luồng hệ thống Backend không bị block khi quét AI nhờ cơ chế hàng đợi của Celery & Redis.
 
 ## 4. Kết quả rà soát Code (Backend & Worker hiện tại)
 
@@ -50,3 +50,6 @@ Hệ thống đã được cập nhật chuẩn xác theo kiến trúc đề ra:
   - Tối ưu Dockerfile Worker bằng cách pre-build (tải trước) model DeepFace giúp tránh cold-start. 
   - Fix quan hệ nullable trong MySQL cho các logic log điểm danh trạng thái failed.
   - Sử dụng chung cấu hình Pydantic cho cả Backend và Worker.
+  - Đã rà soát & khớp nối các Endpoint giữa Frontend (Vue.js) và Backend (Nginx Proxy).
+  - Cập nhật luồng MinIO presigned URL, giúp Worker trong Docker có thể lấy được ảnh bằng presigned URL nội bộ hợp lệ, tránh lỗi Localhost Resolve.
+  - Khớp nối biến môi trường `.env` cho MinIO.

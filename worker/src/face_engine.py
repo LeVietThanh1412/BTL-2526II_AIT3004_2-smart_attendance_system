@@ -18,15 +18,9 @@ class FaceEngine:
         qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
         qdrant_api_key = os.getenv("QDRANT_API_KEY")
         self.collection_name = os.getenv("QDRANT_COLLECTION", "face_embeddings")
-        self.model_name = os.getenv("DEEPFACE_MODEL_NAME", "Facenet")
-        self.detector_backend = os.getenv("DETECTOR_BACKEND", "mtcnn")
 
-        # Configurable thresholds
-        self.match_threshold = float(os.getenv("FACE_MATCH_THRESHOLD", "0.68"))
-        self.detection_conf = float(os.getenv("DETECTION_CONF", "0.5"))
-        self.blur_threshold = float(os.getenv("IMAGE_BLUR_THRESHOLD", "35.0"))
-        self.brightness_min = float(os.getenv("IMAGE_BRIGHTNESS_MIN", "40.0"))
-        self.brightness_max = float(os.getenv("IMAGE_BRIGHTNESS_MAX", "250.0"))
+        self.model_name = os.getenv("DEEPFACE_MODEL_NAME", "ArcFace")
+
 
         if qdrant_api_key:
             self.qdrant = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)

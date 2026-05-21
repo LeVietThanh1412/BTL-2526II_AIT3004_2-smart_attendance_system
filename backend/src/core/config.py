@@ -37,8 +37,10 @@ class Settings(BaseSettings):
     minio_public_base_url: str = Field(alias="MINIO_PUBLIC_BASE_URL")
 
     # Face AI
-    deepface_model_name: str = Field(default="Facenet", alias="DEEPFACE_MODEL_NAME")
-    face_similarity_threshold: float = Field(default=0.68, alias="FACE_MATCH_THRESHOLD")
+
+    deepface_model_name: str = Field(default="ArcFace", alias="DEEPFACE_MODEL_NAME")
+    face_similarity_threshold: float = Field(default=0.6, alias="FACE_MATCH_THRESHOLD")
+
     min_registration_images: int = Field(default=3, alias="MIN_REGISTRATION_IMAGES")
     detection_confidence: float = Field(default=0.5, alias="DETECTION_CONF")
 

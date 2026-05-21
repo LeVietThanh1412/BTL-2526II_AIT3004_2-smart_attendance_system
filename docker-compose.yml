@@ -9,7 +9,9 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
+
       - "${MYSQL_PORT:-3307}:3306"
+
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -83,9 +85,11 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET}
       MINIO_SECURE: ${MINIO_SECURE}
       MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL}
-      FACE_MATCH_THRESHOLD: ${FACE_MATCH_THRESHOLD}
+      FACE_MATCH_THRESHOLD: ${FACE_MATCH_THRESHOLD:-0.68}
       MIN_REGISTRATION_IMAGES: ${MIN_REGISTRATION_IMAGES}
+
       DEEPFACE_MODEL_NAME: ${DEEPFACE_MODEL_NAME:-ArcFace}
+
       TIME_LATE: ${TIME_LATE}
       DEFAULT_CAMERA_ID: ${DEFAULT_CAMERA_ID:-cam_01}
     expose:
@@ -115,8 +119,10 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET}
       MINIO_SECURE: ${MINIO_SECURE}
       MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL}
+
       FACE_MATCH_THRESHOLD: ${FACE_MATCH_THRESHOLD}
       DEEPFACE_MODEL_NAME: ${DEEPFACE_MODEL_NAME:-ArcFace}
+
     networks:
       - attendance_net
     volumes:
@@ -131,7 +137,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "80:80"
+      - "8080:80"
     networks:
       - attendance_net
 

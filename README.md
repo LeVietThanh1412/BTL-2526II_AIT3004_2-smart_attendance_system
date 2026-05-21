@@ -145,7 +145,7 @@ levietthanh1412/attendance-nginx:v1
 
 3. Địa chỉ truy cập
 
-Frontend: http://localhost
+Frontend: http://localhost:8080
 
 API Swagger: http://localhost:8000/docs
 

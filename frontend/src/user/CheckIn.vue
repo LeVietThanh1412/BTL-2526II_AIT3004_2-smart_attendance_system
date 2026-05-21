@@ -20,6 +20,19 @@
                         <div class="video-camera-info">Camera HD 01</div>
                     </div>
 
+                    <div class="input-group">
+                        <label for="studentIdInput">Mã sinh viên <span class="required">*</span></label>
+                        <input 
+                            id="studentIdInput"
+                            v-model="studentId" 
+                            type="text" 
+                            placeholder="Nhập mã sinh viên (VD: SV001)" 
+                            class="student-id-input"
+                            :disabled="isProcessing"
+                            @keyup.enter="handleCheckIn"
+                        />
+                    </div>
+
                     <button class="checkin-btn" :disabled="isProcessing" @click="handleCheckIn">
                         <span>👤</span>
                         {{ isProcessing ? 'Đang nhận diện...' : 'Bắt đầu điểm danh' }}
@@ -50,6 +63,9 @@ const canvasEl = ref(null)
 const isProcessing = ref(false)
 const result = ref(null)
 
+// Khai báo biến reactive để lưu trữ mã sinh viên
+const studentId = ref('')
+
 let videoStream = null
 
 // === Bật webcam khi vào trang ===
@@ -73,6 +89,23 @@ const startWebcam = async () => {
 // === Chụp ảnh & gửi backend AI ===
 const handleCheckIn = async () => {
     if (!videoEl.value || !canvasEl.value) return
+
+    // ========================================================
+    // YÊU CẦU 2: CHẶN THAO TÁC GỬI ẢNH NẾU CHƯA CÓ STUDENT_ID HỢP LỆ
+    // ========================================================
+    if (!studentId.value || !studentId.value.trim()) {
+        const now = new Date()
+        result.value = {
+            userName: 'Lỗi nhập liệu',
+            checkInTime: `${formatTime(now)} - ${formatShortDate(now)}`,
+            statusText: 'Thiếu mã sinh viên!',
+            isError: true,
+        }
+        // Tự động focus lại vào ô nhập cho người dùng
+        document.getElementById('studentIdInput')?.focus()
+        return
+    }
+
     isProcessing.value = true
     result.value = null
 
@@ -84,22 +117,34 @@ const handleCheckIn = async () => {
     const base64 = canvas.toDataURL('image/jpeg', 0.9)
 
     try {
-        const res = await submitCheckIn(base64)
+        // ========================================================
+        // YÊU CẦU 3: GỬI STUDENT_ID KÈM THEO ẢNH LÊN BACKEND
+        // ========================================================
+        // Truyền cả base64 ảnh và student_id (đã xóa khoảng trắng thừa) vào hàm API
+        const res = await submitCheckIn(base64, studentId.value.trim())
+        
         const now = new Date()
         result.value = {
-            userName: res.student_id ? `Mã SV: ${res.student_id}` : 'Đã nhận diện khuôn mặt',
+            userName: res.student_name ? `SV: ${res.student_name}` : `Mã SV: ${studentId.value.trim()}`,
             checkInTime: `${formatTime(now)} - ${formatShortDate(now)}`,
             statusText: res.message || (res.status === 'success' ? 'Điểm danh thành công!' : 'Điểm danh thất bại!'),
             isError: res.status !== 'success',
         }
+
+        // Điểm danh thành công thì có thể xóa trống ô nhập (tùy chọn)
+        // studentId.value = ''
+
     } catch (err) {
         console.error('[v0] Lỗi gửi điểm danh:', err.message)
         const now = new Date()
-        const fallbackMessage = err?.response?.data?.detail || 'Không thể kết nối máy chủ điểm danh.'
+        
+        // YÊU CẦU 4: Đọc chi tiết thông báo lỗi từ Backend trả về (Ví dụ: Không tồn tại, Điểm thấp...)
+        const backendErrorMessage = err?.response?.data?.message || err?.response?.data?.detail || 'Không thể kết nối máy chủ điểm danh.'
+        
         result.value = {
-            userName: 'Không thể nhận diện',
+            userName: 'Điểm danh thất bại',
             checkInTime: `${formatTime(now)} - ${formatShortDate(now)}`,
-            statusText: fallbackMessage,
+            statusText: backendErrorMessage, // Hiển thị rõ lỗi cụ thể lên màn hình
             isError: true,
         }
     } finally {
@@ -228,6 +273,49 @@ main.content {
     background-color: rgba(0, 0, 0, 0.5);
     padding: 4px 10px;
     border-radius: 4px;
+}
+
+/* --- Thêm CSS mới cho Ô Nhập Mã Sinh Viên --- */
+.input-group {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+}
+
+.input-group label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2a3a4e; /* Màu chữ chính phối hợp theo template */
+}
+
+.input-group label .required {
+    color: var(--danger-color);
+}
+
+.student-id-input {
+    width: 100%;
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    font-size: 15px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-color: #f8fafc;
+}
+
+.student-id-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+    background-color: #ffffff;
+}
+
+.student-id-input:disabled {
+    background-color: #e2e8f0;
+    cursor: not-allowed;
+    opacity: 0.7;
 }
 
 .checkin-btn {

@@ -8,8 +8,11 @@ import axios from 'axios'
 // Tạo instance axios riêng để cấu hình baseURL & interceptors tập trung
 const apiClient = axios.create({
   baseURL: '/api/v1',
+
   timeout: 120000,
+
 })
+
 
 // Interceptor: log lỗi tập trung
 apiClient.interceptors.response.use(
@@ -49,7 +52,7 @@ export const fetchAttendanceLogs = async (page = 1, pageSize = 20) => {
 }
 
 // ============= ENDPOINT ĐIỂM DANH (gửi ảnh base64 lên AI) =============
-export const submitCheckIn = async (base64Image) => {
+export const submitCheckIn = async (base64Image, studentId) => {
   const imageSource = base64Image.startsWith('data:')
     ? base64Image
     : `data:image/jpeg;base64,${base64Image}`
@@ -57,6 +60,7 @@ export const submitCheckIn = async (base64Image) => {
   const formData = new FormData()
 
   formData.append('image', imageBlob, 'capture.jpg')
+  formData.append('student_id', studentId)
   formData.append('camera_id', 'cam_01')
 
   const { data } = await apiClient.post('/attendance/check-in', formData)
@@ -79,7 +83,9 @@ export const registerEmployeeVideo = async ({ student_id, name, videoFile }) => 
   formData.append('name', name)
   formData.append('video', videoFile, videoFile.name || 'register.webm')
 
-  const { data } = await apiClient.post('/members/register-video', formData)
+  const { data } = await apiClient.post('/members/register-video', formData, {
+    timeout: 180000,
+  })
   return data
 }
 

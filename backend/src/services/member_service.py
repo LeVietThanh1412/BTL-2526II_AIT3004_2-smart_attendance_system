@@ -62,7 +62,7 @@ class MemberService:
                 stored_image_paths.append(image_path)
 
                 try:
-                    result = extract_face_embedding_task.delay(image_path).get(timeout=20)
+                    result = extract_face_embedding_task.delay(image_path).get(timeout=60)
                     if (
                         isinstance(result, dict)
                         and result.get("status") == "success"
@@ -118,7 +118,7 @@ class MemberService:
                 stored_image_paths.append(image_path)
 
                 try:
-                    result = extract_face_embedding_task.delay(image_path).get(timeout=20)
+                    result = extract_face_embedding_task.delay(image_path).get(timeout=60)
                     if (
                         isinstance(result, dict)
                         and result.get("status") == "success"

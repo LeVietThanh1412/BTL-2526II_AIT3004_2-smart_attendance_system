@@ -21,7 +21,7 @@ def ensure_qdrant_collection(vector_size: int) -> None:
     Neu collection khong ton tai, tao no voi kich thuoc vector cu the.
 
     Args:
-        vector_size: Dimension of face embedding vectors (typically 128 for FaceNet)
+        vector_size: Dimension of face embedding vectors (typically 512 for ArcFace, 128 for FaceNet)
     """
     collection_name = settings.qdrant_collection
     collections = qdrant_client.get_collections().collections

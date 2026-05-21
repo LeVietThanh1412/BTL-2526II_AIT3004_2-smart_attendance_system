@@ -12,7 +12,7 @@ class FaceEngine:
         qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
         qdrant_api_key = os.getenv("QDRANT_API_KEY")
         self.collection_name = os.getenv("QDRANT_COLLECTION", "face_embeddings")
-        self.model_name = os.getenv("DEEPFACE_MODEL_NAME", "Facenet")
+        self.model_name = os.getenv("DEEPFACE_MODEL_NAME", "ArcFace")
 
         if qdrant_api_key:
             self.qdrant = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)

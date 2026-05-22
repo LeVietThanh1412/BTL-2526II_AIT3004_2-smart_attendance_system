@@ -11,8 +11,19 @@ from src.models import AttendanceLog, FaceEmbedding, User
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Khởi tạo MySQL
     _ = (User, FaceEmbedding, AttendanceLog)
     Base.metadata.create_all(bind=engine)
+    
+    # Khởi tạo Qdrant ngay từ đầu thay vì đợi tương tác
+    try:
+        from src.core.qdrant_client import ensure_qdrant_collection
+        vector_size = 512 if settings.deepface_model_name in ["ArcFace", "Facenet512"] else 128
+        ensure_qdrant_collection(vector_size=vector_size)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Lỗi khởi tạo Qdrant: {e}")
+
     yield
 
 

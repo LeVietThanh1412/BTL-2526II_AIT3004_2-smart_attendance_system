@@ -1,41 +1,37 @@
-@startuml Activity_DiemDanh
+@startuml
 skinparam linetype ortho
 skinparam conditionStyle inside
-skinparam wrapWidth 200
-skinparam nodesep 40
-skinparam ranksep 40
 
 start
 :Sinh viên nhập MSSV & quét mặt;
 :Frontend gửi Request (/api/v1/attendance/check-in);
 
-:Backend upload ảnh lên MinIO;
-:Backend gửi Task điểm danh vào Redis (Broker);
+:Backend truy vấn MySQL lấy 'Embedding gốc' của MSSV;
 
-fork
-    :Backend chờ kết quả từ Celery;
-fork again
-    :AI Worker nhận Task từ Redis;
-    :Worker tải ảnh từ MinIO;
-    :Worker chạy MTCNN detect khuôn mặt;
+if (Có tìm thấy dữ liệu MSSV?) then (Có)
+    :Backend upload ảnh điểm danh mới lên MinIO;
+    :Backend gửi Task [image_url, embedding_gốc] vào Redis;
     
-    if (Phát hiện mặt?) then (Có)
-        :Worker trích xuất Current Vector (DeepFace);
-        :Worker Query Qdrant tìm Vector tương đồng nhất;
-        :Worker trả kết quả (Similarity Score) về Backend;
-    else (Không)
-        :Worker trả về lỗi: Không thấy khuôn mặt;
-    endif
-end merge
-
-:Backend nhận kết quả từ Worker;
-
-if (Độ tương đồng >= Ngưỡng cho phép?) then (Đúng - Khớp mặt)
-    :Ghi log "Thành công" vào MySQL;
-    :Trả về kết quả: Điểm danh thành công;
-else (Sai - Không khớp / Lỗi)
-    :Ghi log "Thất bại" vào MySQL;
-    :Trả về lỗi: Khuôn mặt không khớp;
+    fork
+        :Backend chờ kết quả;
+    fork again
+        :AI Worker nhận Task;
+        :Worker tải ảnh điểm danh mới từ MinIO;
+        :Worker trích xuất 'Vector mới';
+        
+        :Worker tính toán khoảng cách Cosine(Vector mới, Embedding gốc);
+        
+        if (Khoảng cách >= Ngưỡng?) then (Khớp)
+            :Worker trả kết quả: THÀNH CÔNG;
+        else (Không khớp)
+            :Worker trả kết quả: THẤT BẠI;
+        endif
+    end merge
+    
+    :Backend ghi log vào MySQL;
+    :Trả về kết quả cho Frontend;
+else (Không)
+    :Trả về lỗi: MSSV không tồn tại;
 endif
 
 stop

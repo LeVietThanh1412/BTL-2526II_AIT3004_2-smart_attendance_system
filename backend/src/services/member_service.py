@@ -1,4 +1,5 @@
 import base64
+import logging
 from typing import List
 
 import cv2
@@ -15,6 +16,8 @@ from src.models.user import User
 from src.services.redis_query import redis_embedding_cache
 from src.services.storages import minio_service
 from src.utils.video_processor import extract_frames_from_video
+
+logger = logging.getLogger(__name__)
 
 
 class MemberService:
@@ -62,18 +65,35 @@ class MemberService:
                 stored_image_paths.append(image_path)
 
                 try:
-                    result = extract_face_embedding_task.delay(image_path).get(timeout=60)
+                    result = extract_face_embedding_task.delay(image_path).get(timeout=120)
                     if (
                         isinstance(result, dict)
                         and result.get("status") == "success"
                         and result.get("vector")
                     ):
                         embeddings.append(np.array(result["vector"], dtype=np.float32))
+                    elif isinstance(result, dict) and result.get("status") == "failed":
+                        logger.warning(
+                            "Embedding extraction failed for image %d of student %s: %s",
+                            idx, student_id, result.get("message", "unknown error"),
+                        )
                 except CeleryTimeoutError:
+                    logger.warning(
+                        "Celery timeout extracting embedding for image %d of student %s",
+                        idx, student_id,
+                    )
                     continue
-                except Exception:
+                except Exception as exc:
+                    logger.error(
+                        "Unexpected error extracting embedding for image %d of student %s: %s",
+                        idx, student_id, exc, exc_info=True,
+                    )
                     continue
-            except Exception:
+            except Exception as exc:
+                logger.error(
+                    "Error processing image %d for student %s: %s",
+                    idx, student_id, exc, exc_info=True,
+                )
                 continue
 
         return stored_image_paths, embeddings
@@ -118,18 +138,35 @@ class MemberService:
                 stored_image_paths.append(image_path)
 
                 try:
-                    result = extract_face_embedding_task.delay(image_path).get(timeout=60)
+                    result = extract_face_embedding_task.delay(image_path).get(timeout=120)
                     if (
                         isinstance(result, dict)
                         and result.get("status") == "success"
                         and result.get("vector")
                     ):
                         embeddings.append(np.array(result["vector"], dtype=np.float32))
+                    elif isinstance(result, dict) and result.get("status") == "failed":
+                        logger.warning(
+                            "Embedding extraction failed for video frame %d of student %s: %s",
+                            idx, student_id, result.get("message", "unknown error"),
+                        )
                 except CeleryTimeoutError:
+                    logger.warning(
+                        "Celery timeout extracting embedding for video frame %d of student %s",
+                        idx, student_id,
+                    )
                     continue
-                except Exception:
+                except Exception as exc:
+                    logger.error(
+                        "Unexpected error extracting embedding for video frame %d of student %s: %s",
+                        idx, student_id, exc, exc_info=True,
+                    )
                     continue
-            except Exception:
+            except Exception as exc:
+                logger.error(
+                    "Error processing video frame %d for student %s: %s",
+                    idx, student_id, exc, exc_info=True,
+                )
                 continue
 
         return stored_image_paths, embeddings

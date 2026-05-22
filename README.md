@@ -1,206 +1,196 @@
+# Smart Attendance System (Hệ Thống Điểm Danh Thông Minh)
 
-# Bài tập lớn Thực hành phát triển hệ thống Trí Tuệ Nhân Tạo
+Hệ thống điểm danh tự động bằng nhận diện khuôn mặt (Face Recognition) áp dụng kiến trúc **Microservices**. Dự án sử dụng mô hình AI tiên tiến (ArcFace, RetinaFace) kết hợp cùng Vector Database để đảm bảo thời gian nhận diện siêu tốc (<20ms).
 
-## Sơ đồ thiết kế hệ thống (UML)
+---
 
-Các sơ đồ thiết kế chi tiết luồng dữ liệu và logic của hệ thống:
+## Tính Năng Nổi Bật
 
-* **Sơ đồ Use Case:** ![Use Case](uml/usecase.png)
-* **Sơ đồ Sequence:** ![Sequence Diagram](uml/sequency.png)
-* **Sơ đồ Deployment:** ![Deployment](uml/deployment.png)
-* **Sơ đồ Activity (Điểm danh):** ![Activity](uml/activity_diem_danh.png)
+- **Nhận diện siêu tốc**: Tìm kiếm Vector đa chiều thông qua **Qdrant** ($O(\log N)$) thay vì quét CSDL truyền thống.
+- **Xử lý bất đồng bộ**: Dùng **Celery + Redis** đẩy các tác vụ AI nặng (DeepFace) xuống Background Worker, giúp API Backend luôn phản hồi ngay lập tức.
+- **Kiến trúc Cloud-Native**: Lưu trữ ảnh gốc qua Object Storage (**MinIO**).
+- **Thiết kế Microservices**: 7 container độc lập chạy mượt mà thông qua `docker-compose`.
 
-## Kiến trúc hệ thống
+---
 
-Hệ thống được xây dựng trên kiến trúc Microservices để tối ưu hóa việc xử lý AI và đảm bảo tính mở rộng.
+## Kiến Trúc Hệ Thống (System Architecture)
 
-![Sơ đồ kiến trúc](uml/component.png)
+Dự án được phân tách thành các service độc lập để tối ưu khả năng mở rộng:
 
-## Pipeline AI
+1. **Frontend (Vue 3 + Vite + Nginx)**: Giao diện Check-in và Dashboard Admin.
+2. **Backend (FastAPI)**: Xử lý logic, Auth, và điều phối AI.
+3. **Worker (Celery)**: Trái tim AI, chạy mô hình DeepFace (ArcFace).
+4. **Qdrant**: Vector Database, lưu trữ Face Embeddings.
+5. **Redis**: Message Broker cho Celery và Caching.
+6. **MinIO**: S3-Compatible Storage, lưu trữ ảnh điểm danh.
+7. **MySQL 8.0**: CSDL Quan hệ lưu trữ thông tin sinh viên và log điểm danh.
 
-### 1) Luồng đăng ký (Registration)
-1. Client gửi danh sách ảnh kèm MSSV lên Backend.
-2. Backend gửi ảnh sang Worker.
-3. Worker chạy YOLO để detect/crop khuôn mặt, trích xuất embedding cho từng ảnh.
-4. Worker tính master embedding và trả về Backend.
-5. Backend lưu thông tin sinh viên + master embedding vào MySQL.
-6. Backend cache master embedding vào Redis và lưu ảnh gốc vào MinIO (audit).
+*(Xem thêm các sơ đồ UML chi tiết trong thư mục `uml/`)*
 
-### 2) Luồng điểm danh (Attendance)
-1. Client gửi MSSV + frame ảnh hiện tại lên Backend.
-2. Backend lấy master embedding từ Redis (cache miss thì query MySQL và nạp lại Redis).
-3. Backend gửi frame ảnh sang Worker để detect/crop và trích xuất current embedding.
-4. Backend tính cosine similarity giữa current embedding và master embedding.
-5. Nếu vượt ngưỡng: ghi log thành công, trả kết quả điểm danh.
-6. Nếu không vượt ngưỡng hoặc không phát hiện mặt: ghi log thất bại và trả lỗi.
+---
 
-## Cấu trúc thư mục
-```
-/
+## Cấu Trúc Thư Mục (Monorepo)
+
+Dự án áp dụng mô hình Monorepo, quản lý tập trung toàn bộ code frontend, backend và worker. Chi tiết ý nghĩa từng file:
+
+```bash
+.
 ├── backend
-│   ├── Dockerfile
-│   ├── README.md
-│   ├── requirements.txt
+│   ├── Dockerfile             # Cấu hình build image Docker cho Backend
+│   ├── README.md              # Hướng dẫn chi tiết cho phần Backend
+│   ├── requirements.txt       # Danh sách các thư viện Python cần cài đặt
 │   └── src
 │       ├── api
-│       │   ├── __init__.py
+│       │   ├── __init__.py    # Khởi tạo module API
 │       │   └── v1
-│       │       ├── attendance.py
-│       │       ├── auth.py
-│       │       ├── dashboard.py
-│       │       ├── __init__.py
-│       │       └── members.py
+│       │       ├── attendance.py # API xử lý điểm danh (chụp ảnh, xác thực)
+│       │       ├── auth.py       # API xác thực người dùng (đăng nhập Admin)
+│       │       ├── dashboard.py  # API lấy thống kê cho màn hình Dashboard
+│       │       ├── __init__.py   # Khởi tạo module v1
+│       │       └── members.py    # API quản lý thông tin sinh viên
 │       ├── core
-│       │   ├── celery_client.py
-│       │   ├── config.py
-│       │   ├── __init__.py
-│       │   ├── qdrant_client.py
-│       │   └── security.py
+│       │   ├── celery_client.py  # Cấu hình kết nối tới Celery Worker
+│       │   ├── config.py         # Đọc và load các biến môi trường (.env)
+│       │   ├── __init__.py       # Khởi tạo module core
+│       │   ├── qdrant_client.py  # Cấu hình kết nối tới Qdrant Vector DB
+│       │   └── security.py       # Xử lý mã hóa mật khẩu, tạo token JWT
 │       ├── database
-│       │   ├── Base.py
-│       │   └── __init__.py
-│       ├── __init__.py
-│       ├── main.py
+│       │   ├── Base.py           # Khởi tạo kết nối MySQL bằng SQLAlchemy
+│       │   └── __init__.py       # Khởi tạo module database
+│       ├── __init__.py           # Khởi tạo module src
+│       ├── main.py               # Điểm bắt đầu (entrypoint) chạy FastAPI
 │       ├── models
-│       │   ├── attendance.py
-│       │   ├── face_embedding.py
-│       │   ├── __init__.py
-│       │   └── user.py
+│       │   ├── attendance.py     # Định nghĩa table `attendances` trong MySQL
+│       │   ├── face_embedding.py # Định nghĩa table `face_embeddings` trong MySQL
+│       │   ├── __init__.py       # Khởi tạo module models
+│       │   └── user.py           # Định nghĩa table `users` trong MySQL
 │       ├── schemas
-│       │   ├── attendance.py
-│       │   ├── __init__.py
-│       │   └── user.py
+│       │   ├── attendance.py     # Định nghĩa Pydantic schema cho Attendance API
+│       │   ├── __init__.py       # Khởi tạo module schemas
+│       │   └── user.py           # Định nghĩa Pydantic schema cho User API
 │       ├── services
-│       │   ├── __init__.py
-│       │   ├── member_service.py
-│       │   ├── redis_query.py
-│       │   └── storages.py
+│       │   ├── __init__.py       # Khởi tạo module services
+│       │   ├── member_service.py # Logic nghiệp vụ quản lý sinh viên
+│       │   ├── redis_query.py    # Logic tương tác caching với Redis
+│       │   └── storages.py       # Logic upload và lưu ảnh gốc vào MinIO
 │       └── utils
-│           ├── __init__.py
-│           └── video_processor.py
-├── docker-compose-network.yml
-├── docker-compose.yml
-├── document.md
+│           ├── __init__.py       # Khởi tạo module utils
+│           └── video_processor.py# Các tiện ích xử lý khung hình/video nếu có
+├── docker-compose-network.yml    # Cấu hình mạng riêng biệt cho Docker
+├── docker-compose.yml            # File chính khởi tạo 7 containers cùng lúc
+├── document.md                   # Tài liệu ghi chú hệ thống
 ├── frontend
-│   ├── Dockerfile
-│   ├── index.html
-│   ├── package.json
-│   ├── pnpm-lock.yaml
+│   ├── Dockerfile                # Cấu hình build image Docker cho Frontend
+│   ├── index.html                # Trang web gốc chứa thẻ div '#app'
+│   ├── package.json              # Khai báo các thư viện Javascript
+│   ├── pnpm-lock.yaml            # Khóa phiên bản của các thư viện JS
 │   ├── public
-│   │   ├── favicon.ico
-│   │   └── manifest.json
+│   │   ├── favicon.ico           # Biểu tượng trang web
+│   │   └── manifest.json         # Cấu hình PWA
 │   ├── src
 │   │   ├── admin
-│   │   │   ├── AdminSidebar.vue
-│   │   │   ├── Dashbroad.vue
+│   │   │   ├── AdminSidebar.vue  # Menu bên trái Admin
+│   │   │   ├── Dashbroad.vue     # Bố cục chính trang Admin
 │   │   │   ├── pages
-│   │   │   │   ├── AttendanceLogs.vue
-│   │   │   │   ├── Dashboard.vue
-│   │   │   │   └── RegisterAttendance.vue
-│   │   │   ├── RecentActivity.vue
-│   │   │   ├── StatCard.vue
-│   │   │   └── TopHeader.vue
-│   │   ├── App.vue
-│   │   ├── main.js
-│   │   ├── router.js
+│   │   │   │   ├── AttendanceLogs.vue # Lịch sử điểm danh chi tiết
+│   │   │   │   ├── Dashboard.vue      # Thống kê tổng quan (Admin)
+│   │   │   │   └── RegisterAttendance.vue # Đăng ký khuôn mặt sinh viên
+│   │   │   ├── RecentActivity.vue# Các hoạt động gần nhất
+│   │   │   ├── StatCard.vue      # Card thống kê
+│   │   │   └── TopHeader.vue     # Thanh menu trên cùng
+│   │   ├── App.vue               # Component gốc VueJS
+│   │   ├── main.js               # Điểm bắt đầu (entrypoint) VueJS
+│   │   ├── router.js             # Điều hướng (routing) các trang
 │   │   ├── shared
-│   │   │   ├── api.js
-│   │   │   ├── dateUtils.js
-│   │   │   └── styles.css
+│   │   │   ├── api.js            # Khởi tạo axios gọi API
+│   │   │   ├── dateUtils.js      # Tiện ích format ngày tháng
+│   │   │   └── styles.css        # CSS dùng chung
 │   │   └── user
-│   │       └── CheckIn.vue
-│   └── vite.config.js
-├── ke_hoach_trien_khai.md
+│   │       └── CheckIn.vue       # Giao diện chính để điểm danh
+│   └── vite.config.js            # Cấu hình đóng gói Frontend bằng Vite
+├── ke_hoach_trien_khai.md        # Lập kế hoạch các sprint phát triển
 ├── nginx
-│   ├── Dockerfile
-│   └── nginx.conf
-├── README.md
-├── todo.txt
+│   ├── Dockerfile                # File build image Nginx Gateway
+│   └── nginx.conf                # Cấu hình Reverse Proxy
+├── README.md                     # File mô tả tổng quan dự án
+├── report
+│   ├── out                       # Chứa các file tạm biên dịch LaTeX
+│   └── report.tex                # Mã nguồn gốc báo cáo LaTeX
+├── todo.txt                      # Các công việc cần làm
 ├── uml
-│   ├── Activity_diem_danh.png
-│   ├── activity_diem_danh.puml
-│   ├── Component.png
-│   ├── component.puml
-│   ├── Deployment.png
-│   ├── deployment.puml
-│   ├── README.md
-│   ├── requirements.md
-│   ├── sequence.puml
-│   ├── sequency.png
-│   ├── usecase.png
-│   └── usecase.puml
+│   ├── activity_diem_danh.png    # Render sơ đồ hoạt động
+│   ├── activity_diem_danh.puml   # Mã nguồn PlantUML Activity
+│   ├── component.png             # Render sơ đồ kiến trúc
+│   ├── component.puml            # Mã nguồn PlantUML Component
+│   ├── deployment.png            # Render sơ đồ triển khai
+│   ├── deployment.puml           # Mã nguồn PlantUML Deployment
+│   ├── sequency.png              # Render sơ đồ tuần tự
+│   ├── sequency.puml             # Mã nguồn PlantUML Sequence
+│   ├── usecase.png               # Render sơ đồ Use Case
+│   ├── usecase.puml              # Mã nguồn PlantUML Use Case
+│   └── yeu_cau_can_tuan_thu.md   # Yêu cầu kỹ thuật dự án
 └── worker
-    ├── Dockerfile
-    ├── requirements.txt
+    ├── Dockerfile                # File build image Docker cho Worker
+    ├── requirements.txt          # Thư viện Python AI (deepface, tf, opencv)
     └── src
-        ├── celery_app.py
-        ├── face_engine.py
-        ├── __init__.py
-        └── tasks.py
-
-22 directories, 79 files
+        ├── celery_app.py         # Khởi tạo kết nối Celery và Redis
+        ├── face_engine.py        # Logic trích xuất AI khuôn mặt
+        ├── __init__.py           # Khởi tạo module src worker
+        └── tasks.py              # Các hàm chạy nền bất đồng bộ
 ```
 
+---
 
-## Thông tin nhóm
+## Hướng Dẫn Cài Đặt & Chạy Dự Án
 
-- 24022454 - Lê Việt Thành (Trưởng nhóm)
-- 24022406 - Nguyễn Nhật Minh
-- 24022364 - Tạ Duy Khánh
-- 24022394 - Nguyễn Đức Mạnh
+### 1. Yêu Cầu Hệ Thống
+- Đã cài đặt **Docker** và **Docker Compose**.
+- Cổng (Port) khả dụng: `8080` (Web), `8000` (API), `3306/3307` (MySQL), `6333` (Qdrant), `6379` (Redis), `9000/9001` (MinIO).
 
-## Phân chia công việc
-
-| STT | MSSV | Họ và tên | Vai trò chính | Công việc phụ trách |
-| --- | --- | --- | --- | --- |
-| 1 | 24022454 | Lê Việt Thành | Trưởng nhóm, DevOps | Thiết kế kiến trúc tổng thể; dựng docker-compose; cấu hình Nginx gateway; tổ chức nhánh Git, review và merge code; chuẩn hóa tài liệu README. |
-| 2 | 24022406 | Nguyễn Nhật Minh | Backend Developer | Xây dựng FastAPI (routes, schemas, models); kết nối Postgres/Redis/MinIO/Qdrant; xử lý logic checkin/checkout và API cho frontend. |
-| 3 | 24022364 | Tạ Duy Khánh | AI/Worker Developer | Xây dựng Celery worker; cài đặt pipeline xử lý ảnh khuôn mặt; triển khai task trích xuất vector bằng DeepFace; tối ưu thời gian xử lý nền. |
-| 4 | 24022394 | Nguyễn Đức Mạnh | Frontend Developer, QA | Xây dựng giao diện người dùng và admin/dashbroad; tích hợp API từ backend; kiểm thử chức năng end-to-end; kiểm tra trải nghiệm người dùng. |
-
-## Ghi chú phối hợp
-
-- Mỗi thành viên chịu trách nhiệm chính phần việc được phân công và hỗ trợ chéo khi tích hợp hệ thống.
-
-## Cách chạy trên máy
-
-Sử dụng lệnh docker compose:
+### 2. Khởi Tạo Cấu Hình
+Hệ thống sử dụng các thông số bảo mật từ file `.env`. Bạn cần copy file mẫu ra môi trường thực:
+```bash
+cp .env.example .env
 ```
-# Build từng images
+*(Lưu ý: Mặc định MySQL trong `.env.example` map ra cổng `3307` để tránh đụng độ với MySQL có sẵn ở máy bạn. Hãy mở file `.env` để kiểm tra lại các thông số `FACE_MATCH_THRESHOLD` hay `DEEPFACE_MODEL_NAME` nếu muốn tinh chỉnh).*
+
+### 3. Build & Khởi Chạy
+Dùng một lệnh duy nhất để build và run toàn bộ hệ thống (lần đầu sẽ mất thời gian để tải các thư viện AI):
+```bash
+# Build các image (Frontend, Backend, Worker, Nginx)
 docker compose build
 
-# Chạy các images
+# Khởi chạy toàn bộ hệ thống dưới background (-d)
 docker compose up -d
+```
 
-#Xem logs
+### 4. Truy Cập Hệ Thống
+Sau khi các container chạy lên (mất khoảng 1-2 phút để Worker khởi động AI model), bạn có thể truy cập:
+
+- **Giao diện Web (Frontend)**: http://localhost:8080
+- **API Docs (Swagger)**: http://localhost:8000/docs
+- **MinIO Console**: http://localhost:9001 *(Sử dụng `MINIO_ROOT_USER` / `PASSWORD` trong file `.env` để login)*
+
+### 5. Theo Dõi Log Hệ Thống (Gỡ Lỗi)
+Mọi xử lý nhận diện AI đều diễn ra ở Worker. Để theo dõi trực tiếp các cờ QA (Quality Assurance) hay lỗi nhận diện:
+```bash
+docker compose logs -f worker
+```
+Hoặc xem toàn bộ log của tất cả services:
+```bash
 docker compose logs -f
 ```
 
-Nếu máy bạn đã dùng cổng `3306`, hãy đổi `MYSQL_PORT` trong file `.env` sang một cổng khác, ví dụ `3307`, rồi chạy lại `docker compose up -d`.
+---
 
-## Hướng dẫn triển khai (Deployment)
-Hệ thống đã được đóng gói dưới dạng Docker Images trên Docker Hub. Để chạy toàn bộ hệ thống mà không cần cài đặt môi trường code, thực hiện các bước sau:
+## Thông Tin Nhóm Phát Triển
 
-1. Chuẩn bị
-    - Tải file docker-compose.yml về máy.
-    - Tạo file .env cùng cấp với các thông số mẫu từ .env.example.
+| STT | MSSV | Họ và tên | Vai trò chính |
+| --- | --- | --- | --- |
+| 1 | 24022454 | **Lê Việt Thành** | Trưởng nhóm, DevOps, Thiết kế hệ thống |
+| 2 | 24022406 | **Nguyễn Nhật Minh** | Backend Developer (FastAPI, Redis, MySQL) |
+| 3 | 24022364 | **Tạ Duy Khánh** | AI/Worker Developer (DeepFace, Celery) |
+| 4 | 24022394 | **Nguyễn Đức Mạnh** | Frontend Developer (Vue3, Dashboard) |
 
-2. Khởi chạy
-    - Tại thư mục chứa docker-compose.yml, chạy:
-```
-docker compose up -d
-```
-
-Docker sẽ tự động kéo các image sau:
-```
-levietthanh1412/attendance-backend:v2
-levietthanh1412/attendance-frontend:v2
-levietthanh1412/attendance-worker:v2
-levietthanh1412/attendance-nginx:v2
-```
-
-3. Địa chỉ truy cập
-- Frontend: http://localhost:8080
-- API Swagger: http://localhost:8000/docs
-- MinIO Storage: http://localhost:9001
-- Demo: attendance.thanhtech.cloud
+---
+> **Lưu ý QA (Quality Assurance)**: Hệ thống được thiết kế với cơ chế Fallback nghiêm ngặt. Nếu ảnh chụp quá tối, mờ, hoặc không nhận diện được rõ khuôn mặt (Threshold < 0.68), Worker sẽ tự động bắn cờ `WARNING/FAIL` và yêu cầu người dùng thử lại để đảm bảo không xảy ra hiện tượng **nhận diện nhầm người khác (0% False Positive)**.

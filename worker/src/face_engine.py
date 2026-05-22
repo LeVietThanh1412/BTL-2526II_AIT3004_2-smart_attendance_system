@@ -20,7 +20,9 @@ class FaceEngine:
         self.collection_name = os.getenv("QDRANT_COLLECTION", "face_embeddings")
 
         self.model_name = os.getenv("DEEPFACE_MODEL_NAME", "ArcFace")
-
+        self.detector_backend = os.getenv("FACE_DETECTOR_BACKEND", "mtcnn")
+        self.detection_conf = float(os.getenv("FACE_DETECTION_CONFIDENCE", "0.5"))
+        self.match_threshold = float(os.getenv("FACE_MATCH_THRESHOLD", "0.6"))
 
         if qdrant_api_key:
             self.qdrant = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
@@ -29,9 +31,9 @@ class FaceEngine:
 
     def check_image_quality(self, image_bytes: bytes) -> dict[str, Any]:
         """
-        Check image quality: blur detection and brightness validation.
+        Check image quality: basic validation only.
 
-        Kiem tra chat luong anh: do mo va do sang.
+        Kiểm tra chất lượng ảnh: chỉ xác thực ảnh đọc được.
 
         Args:
             image_bytes: Raw image bytes
@@ -45,39 +47,13 @@ class FaceEngine:
         if img is None:
             return {"ok": False, "reason": "Không thể đọc ảnh. Định dạng không hợp lệ."}
 
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        # Check blur using Laplacian variance
-        laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-        if laplacian_var < self.blur_threshold:
-            logger.warning("Image too blurry: laplacian_var=%.2f < threshold=%.2f", laplacian_var, self.blur_threshold)
-            return {
-                "ok": False,
-                "reason": f"Ảnh quá mờ (blur score: {laplacian_var:.1f}, ngưỡng: {self.blur_threshold:.1f}). Vui lòng chụp lại rõ nét hơn.",
-            }
-
-        # Check brightness
-        mean_brightness = float(np.mean(gray))
-        if mean_brightness < self.brightness_min:
-            logger.warning("Image too dark: brightness=%.2f < min=%.2f", mean_brightness, self.brightness_min)
-            return {
-                "ok": False,
-                "reason": f"Ảnh quá tối (brightness: {mean_brightness:.1f}, tối thiểu: {self.brightness_min:.1f}). Vui lòng chụp ở nơi sáng hơn.",
-            }
-        if mean_brightness > self.brightness_max:
-            logger.warning("Image too bright: brightness=%.2f > max=%.2f", mean_brightness, self.brightness_max)
-            return {
-                "ok": False,
-                "reason": f"Ảnh quá sáng (brightness: {mean_brightness:.1f}, tối đa: {self.brightness_max:.1f}). Vui lòng giảm độ sáng.",
-            }
-
         return {"ok": True}
 
     def extract_vector(self, image_url: str) -> list[float]:
         """
         Download image, check quality, detect + align face, and extract embedding.
 
-        Tai anh, kiem tra chat luong, detect + align khuon mat, va trich xuat embedding.
+        Tải ảnh, kiểm tra chất lượng, phát hiện + căn chỉnh khuôn mặt, và trích xuất embedding.
 
         Args:
             image_url: URL of the image in MinIO
@@ -89,7 +65,7 @@ class FaceEngine:
             ValueError: If image quality is bad or no face detected
         """
         if not image_url:
-            raise ValueError("image_url is required")
+            raise ValueError("Thiếu đường dẫn ảnh.")
 
         response = requests.get(image_url, timeout=30)
         response.raise_for_status()
@@ -138,7 +114,7 @@ class FaceEngine:
 
         vector = first_representation.get("embedding")
         if not vector:
-            raise ValueError("Embedding vector is empty")
+            raise ValueError("Vector embedding trống.")
 
         return [float(v) for v in vector]
 
@@ -146,7 +122,7 @@ class FaceEngine:
         """
         Search Qdrant for matching face vectors, filtered by student_id.
 
-        Tim kiem vector khuon mat khop trong Qdrant, loc theo student_id.
+        Tìm kiếm vector khuôn mặt khớp trong Qdrant, lọc theo student_id.
 
         Args:
             vector: Face embedding vector to match against
@@ -156,9 +132,9 @@ class FaceEngine:
             dict with 'student_id', 'score', 'matched', 'reason'
         """
         if not vector:
-            raise ValueError("vector is required")
+            raise ValueError("Thiếu vector khuôn mặt.")
         if not student_id:
-            raise ValueError("student_id is required")
+            raise ValueError("Thiếu mã sinh viên.")
 
         # Filter Qdrant search to only vectors belonging to this student
         query_filter = Filter(
@@ -198,6 +174,7 @@ class FaceEngine:
                 f"Khuôn mặt không khớp với sinh viên '{student_id}' "
                 f"(similarity: {score:.4f} ≤ threshold: {self.match_threshold:.4f})."
             )
+            
 
         logger.info(
             "Qdrant search result: student_id=%s, score=%.4f, threshold=%.4f, matched=%s",
@@ -210,3 +187,4 @@ class FaceEngine:
             "matched": matched,
             "reason": reason,
         }
+

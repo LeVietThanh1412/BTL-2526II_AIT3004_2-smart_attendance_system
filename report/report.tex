@@ -1,0 +1,384 @@
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese]{babel}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{setspace}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\graphicspath{{../uml/}}
+\onehalfspacing
+
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue,
+	urlcolor=blue,
+	citecolor=blue
+}
+
+\lstset{
+	basicstyle=\ttfamily\small,
+	frame=single,
+	breaklines=true,
+	backgroundcolor=\color{gray!10}
+}
+
+\title{Báo Cáo Bài Tập Lớn\\Hệ Thống Điểm Danh Thông Minh}
+\author{Nhóm: 9\\ 24022454 Lê Việt Thành (Trưởng nhóm)\\
+24022406 Nguyễn Nhật Minh\\
+24022364 Tạ Duy Khánh\\
+24022394 Nguyễn Đức Mạnh}
+\date{Tháng 05/2026}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+\newpage
+
+\pagenumbering{roman}
+\tableofcontents
+\listoffigures
+\listoftables
+\newpage
+
+\chapter*{Lời mở đầu}
+\addcontentsline{toc}{chapter}{Lời mở đầu}
+
+Trong bối cảnh chuyển đổi số giáo dục và nhu cầu quản lý lớp học hiệu quả, điểm danh bằng khuôn mặt là một hướng đi khả thi giúp giảm thời gian thao tác thủ công, đồng thời cải thiện tính chính xác và minh bạch. Báo cáo này trình bày quá trình phân tích, thiết kế và triển khai hệ thống điểm danh thông minh dựa trên kiến trúc microservices và pipeline AI cho nhận dạng khuôn mặt.
+
+\chapter{Giới thiệu đề tài}
+
+\section{Bối cảnh và động lực}
+Điểm danh thủ công bằng gọi tên hoặc quét thẻ có nhiều hạn chế như mất thời gian, dễ xảy ra nhầm lẫn, và khó kiểm soát trường hợp gian lận. Công nghệ thị giác máy tính và học sâu cho phép nhận diện khuôn mặt với độ chính xác cao, tạo nền tảng để tự động hóa quy trình điểm danh và tích hợp vào các hệ thống quản lý đào tạo.
+
+\section{Mục tiêu}
+Mục tiêu của dự án là xây dựng một hệ thống điểm danh thông minh có khả năng:
+\begin{itemize}
+	\item Đăng ký khuôn mặt theo MSSV bằng ảnh hoặc video.
+	\item Trích xuất và lưu trữ embedding khuôn mặt để đối sánh.
+	\item Thực hiện điểm danh bằng ảnh chụp từ camera, trả kết quả nhanh.
+	\item Lưu lịch sử điểm danh và hỗ trợ xuất báo cáo.
+	\item Vận hành ổn định, dễ mở rộng và triển khai bằng Docker.
+\end{itemize}
+
+\section{Phạm vi hệ thống}
+Hệ thống tập trung vào hai luồng chính: đăng ký và điểm danh. Ngoài ra, hệ thống hỗ trợ quản lý sinh viên, thống kê và xuất báo cáo. Các chức năng nâng cao như quản lý lớp học, lịch học theo ca, hoặc tích hợp SSO nằm ngoài phạm vi hiện tại.
+
+\section{Đóng góp chính}
+\begin{itemize}
+	\item Thiết kế kiến trúc microservices với backend, worker AI, và các dịch vụ dữ liệu độc lập.
+	\item Xây dựng pipeline AI sử dụng DeepFace (ArcFace) và Qdrant để lưu trữ, truy vấn vector.
+	\item Tích hợp MinIO để lưu ảnh, Redis cho cache và Celery làm hàng đợi tác vụ.
+	\item Đóng gói triển khai bằng Docker Compose cho môi trường phát triển và triển khai.
+\end{itemize}
+
+\chapter{Phân tích yêu cầu}
+
+\section{Tác nhân và bối cảnh sử dụng}
+Hệ thống phục vụ hai nhóm người dùng chính:
+\begin{itemize}
+	\item \textbf{Sinh viên}: đăng ký khuôn mặt, thực hiện điểm danh, xem lịch sử cá nhân.
+	\item \textbf{Quản lý/Giảng viên}: quản lý sinh viên, xem báo cáo tổng hợp, xuất dữ liệu.
+\end{itemize}
+
+\section{Yêu cầu chức năng}
+\begin{itemize}
+	\item Đăng ký khuôn mặt theo MSSV bằng ảnh (base64) hoặc video.
+	\item Trích xuất embedding từ ảnh, tính master embedding và lưu vào Qdrant.
+	\item Lưu thông tin sinh viên và log đăng ký vào MySQL.
+	\item Lưu ảnh gốc vào MinIO để audit.
+	\item Điểm danh bằng ảnh: nhận diện theo MSSV, trả kết quả matched/không matched.
+	\item Cache embedding trên Redis để tăng tốc.
+	\item Quản lý sinh viên: thêm/sửa/xóa/tra cứu.
+	\item Xem lịch sử điểm danh và báo cáo tổng hợp.
+	\item Xuất dữ liệu điểm danh ra CSV/Excel.
+\end{itemize}
+
+\section{Yêu cầu phi chức năng}
+\begin{itemize}
+	\item Hiệu năng: phản hồi điểm danh trong vài giây.
+	\item Độ tin cậy: retry task, xử lý lỗi worker rõ ràng.
+	\item Bảo mật: hỗ trợ HTTPS, xác thực token, phân quyền theo vai trò.
+	\item Tính sẵn sàng: service tự khởi động lại khi lỗi.
+	\item Mở rộng: dễ scale backend/worker theo tải.
+	\item Bảo trì: code tách lớp, có log và healthcheck.
+	\item Tính tương thích: hỗ trợ trình duyệt hiện đại và thiết bị di động.
+	\item Sao lưu: backup MySQL và MinIO định kỳ.
+\end{itemize}
+
+\section{Sơ đồ use case}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.9\textwidth]{usecase.png}
+	\caption{Sơ đồ use case của hệ thống}
+	\label{fig:usecase}
+\end{figure}
+
+\chapter{Kiến trúc hệ thống}
+
+\section{Tổng quan kiến trúc}
+Hệ thống sử dụng kiến trúc microservices với các thành phần chính:
+\begin{itemize}
+	\item \textbf{Nginx}: reverse proxy, phân luồng /api và phục vụ static UI.
+	\item \textbf{Backend FastAPI}: cung cấp REST API, xử lý nghiệp vụ.
+	\item \textbf{Worker Celery}: xử lý tác vụ AI nặng.
+	\item \textbf{MySQL}: lưu trữ dữ liệu nghiệp vụ.
+	\item \textbf{Redis}: cache embedding và làm message broker cho Celery.
+	\item \textbf{Qdrant}: lưu trữ vector khuôn mặt và truy vấn tương đồng.
+	\item \textbf{MinIO}: lưu trữ ảnh đăng ký và ảnh điểm danh.
+\end{itemize}
+
+\section{Sơ đồ component}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.95\textwidth]{Component.png}
+	\caption{Sơ đồ thành phần (component diagram)}
+	\label{fig:component}
+\end{figure}
+
+\section{Sơ đồ deployment}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.95\textwidth]{Deployment.png}
+	\caption{Sơ đồ triển khai (deployment diagram)}
+	\label{fig:deployment}
+\end{figure}
+
+\section{Mô hình lưu trữ dữ liệu}
+Hệ thống tách dữ liệu theo loại:
+\begin{itemize}
+	\item \textbf{MySQL}: lưu user, embedding metadata, và lịch sử điểm danh.
+	\item \textbf{Qdrant}: lưu vector embedding để truy vấn nhanh.
+	\item \textbf{MinIO}: lưu ảnh gốc (đăng ký và điểm danh).
+	\item \textbf{Redis}: cache embedding và làm broker cho Celery.
+\end{itemize}
+
+\chapter{Thiết kế chi tiết}
+
+\section{Mô hình dữ liệu}
+\subsection{Bảng users}
+\begin{itemize}
+	\item \texttt{id}: khóa chính.
+	\item \texttt{student\_id}: mã sinh viên, duy nhất.
+	\item \texttt{full\_name}: họ tên sinh viên.
+	\item \texttt{created\_at}: thời điểm tạo.
+\end{itemize}
+
+\subsection{Bảng face\_embeddings}
+\begin{itemize}
+	\item \texttt{id}: khóa chính.
+	\item \texttt{user\_id}: khóa ngoại sang users.
+	\item \texttt{qdrant\_id}: ID vector trong Qdrant.
+	\item \texttt{image\_path}: đường dẫn ảnh trong MinIO.
+	\item \texttt{created\_at}: thời điểm tạo.
+\end{itemize}
+
+\subsection{Bảng attendances}
+\begin{itemize}
+	\item \texttt{id}: khóa chính.
+	\item \texttt{user\_id}: khóa ngoại sang users.
+	\item \texttt{check\_in\_time}: thời gian điểm danh.
+	\item \texttt{confidence\_score}: điểm tương đồng.
+	\item \texttt{camera\_id}: mã camera.
+	\item \texttt{status}: trạng thái (success/failed/unknown).
+\end{itemize}
+
+\section{Thiết kế API}
+\begin{longtable}{p{4cm} p{4cm} p{7cm}}
+\toprule
+\textbf{Endpoint} & \textbf{Method} & \textbf{Mô tả} \\
+\midrule
+/health & GET & Kiểm tra trạng thái service. \\
+/api/v1/members/register & POST & Đăng ký bằng danh sách ảnh base64. \\
+/api/v1/members/register-video & POST & Đăng ký bằng video. \\
+/api/v1/attendance/check-in & POST & Điểm danh bằng ảnh chụp. \\
+\bottomrule
+\end{longtable}
+
+\section{Luồng đăng ký (Registration)}
+\begin{enumerate}
+	\item Client gửi danh sách ảnh hoặc video kèm MSSV và họ tên.
+	\item Backend tải ảnh lên MinIO và gọi Celery task trích xuất embedding.
+	\item Worker trích xuất vector qua DeepFace (ArcFace).
+	\item Backend tính master embedding bằng trung bình vector.
+	\item Lưu vector vào Qdrant, lưu metadata vào MySQL.
+	\item Cache embedding vào Redis.
+\end{enumerate}
+
+\section{Luồng điểm danh (Attendance)}
+\begin{enumerate}
+	\item Client gửi ảnh chụp từ camera kèm MSSV.
+	\item Backend kiểm tra MSSV và vector tồn tại.
+	\item Backend upload ảnh lên MinIO.
+	\item Backend gửi task nhận diện đến Worker (Celery).
+	\item Worker trích xuất vector từ ảnh và tìm kiếm Qdrant theo MSSV.
+	\item Backend nhận kết quả, lưu log điểm danh vào MySQL.
+\end{enumerate}
+
+\section{Sơ đồ sequence và activity}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.95\textwidth]{sequency.png}
+	\caption{Sơ đồ sequence cho đăng ký và điểm danh}
+	\label{fig:sequence}
+\end{figure}
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.95\textwidth]{Activity_diem_danh.png}
+	\caption{Sơ đồ activity cho luồng điểm danh}
+	\label{fig:activity}
+\end{figure}
+
+\section{Công thức so sánh vector}
+Độ tương đồng cosine được tính như sau:
+\[
+\text{cosine}(a, b) = \frac{a \cdot b}{\|a\| \|b\|}
+\]
+Nếu điểm tương đồng lớn hơn ngưỡng \texttt{FACE\_MATCH\_THRESHOLD} thì kết quả được coi là khớp.
+
+\chapter{Cài đặt hệ thống}
+
+\section{Backend (FastAPI)}
+Backend triển khai bằng FastAPI, gồm các tầng:
+\begin{itemize}
+	\item \textbf{API Router}: định nghĩa endpoint đăng ký và điểm danh.
+	\item \textbf{Service Layer}: xử lý nghiệp vụ (MemberService).
+	\item \textbf{Database Layer}: SQLAlchemy ORM.
+\end{itemize}
+CORS được mở cho mọi nguồn để tiện tích hợp frontend trong giai đoạn phát triển.
+
+\section{Worker AI (Celery + DeepFace)}
+Worker xử lý hai tác vụ chính:
+\begin{itemize}
+	\item \texttt{extract\_face\_embedding\_task}: trích xuất embedding khi đăng ký.
+	\item \texttt{recognize\_face\_task}: nhận diện khi điểm danh.
+\end{itemize}
+Worker sử dụng DeepFace với model ArcFace và detector MTCNN. Qdrant được dùng để lưu và truy vấn vector.
+
+\section{Redis và cache embedding}
+Redis được dùng làm broker cho Celery và lưu cache embedding. Mỗi embedding được lưu với key dạng \texttt{user:\{student\_id\}:embedding} và có TTL cấu hình.
+
+\section{Qdrant}
+Qdrant lưu vector embedding theo cấu trúc point có payload \texttt{student\_id} và \texttt{user\_id}. Khi nhận diện, worker truy vấn Qdrant với filter theo \texttt{student\_id} và lấy kết quả gần nhất.
+
+\section{MinIO}
+MinIO lưu ảnh gốc để audit và phục vụ truy xuất khi cần. Backend upload ảnh và nhận URL để truyền cho worker xử lý.
+
+\section{Frontend}
+Frontend xây dựng bằng Vue, cung cấp các màn hình chính: đăng ký, điểm danh, dashboard, thống kê và quản trị. Ứng dụng được build thành static files và phục vụ bởi Nginx.
+
+\section{Nginx}
+Nginx thực hiện reverse proxy cho API (đường dẫn /api) và phục vụ static UI tại /.
+
+\chapter{Triển khai và vận hành}
+
+\section{Docker Compose}
+Hệ thống được đóng gói bằng Docker Compose với các service:
+\begin{itemize}
+	\item mysql, redis, qdrant, minio
+	\item backend (FastAPI)
+	\item worker (Celery)
+	\item nginx (reverse proxy + static UI)
+\end{itemize}
+
+\section{Quy trình chạy hệ thống}
+\begin{lstlisting}
+docker compose build
+docker compose up -d
+docker compose logs -f
+\end{lstlisting}
+
+\section{Cấu hình biến môi trường}
+Các biến môi trường chính:
+\begin{longtable}{p{6cm} p{8cm}}
+\toprule
+\textbf{Biến} & \textbf{Mô tả} \\
+\midrule
+DATABASE\_URL & Chuỗi kết nối MySQL.
+\\
+REDIS\_URL & Chuỗi kết nối Redis.
+\\
+CELERY\_BROKER\_URL & Broker cho Celery.
+\\
+CELERY\_RESULT\_BACKEND & Backend kết quả Celery.
+\\
+QDRANT\_URL & Địa chỉ Qdrant.
+\\
+MINIO\_ENDPOINT & Địa chỉ MinIO.
+\\
+MINIO\_ACCESS\_KEY & Access key MinIO.
+\\
+MINIO\_SECRET\_KEY & Secret key MinIO.
+\\
+FACE\_MATCH\_THRESHOLD & Ngưỡng nhận diện khuôn mặt.
+\\
+DEEPFACE\_MODEL\_NAME & Model nhận diện (mặc định ArcFace).
+\\
+FACE\_DETECTOR\_BACKEND & Backend detector (mặc định mtcnn).
+\\
+\bottomrule
+\end{longtable}
+
+\chapter{Kiểm thử và đánh giá}
+
+\section{Kế hoạch kiểm thử}
+Hệ thống được kiểm thử theo ba nhóm chính:
+\begin{itemize}
+	\item \textbf{Kiểm thử chức năng}: đăng ký, điểm danh, báo cáo.
+	\item \textbf{Kiểm thử hiệu năng}: đo thời gian phản hồi đăng ký và điểm danh.
+	\item \textbf{Kiểm thử độ ổn định}: kiểm tra retry khi worker lỗi hoặc timeout.
+\end{itemize}
+
+\section{Bộ ca kiểm thử mẫu}
+\begin{longtable}{p{4cm} p{4cm} p{6cm}}
+\toprule
+\textbf{Ca kiểm thử} & \textbf{Đầu vào} & \textbf{Kết quả mong đợi} \\
+\midrule
+Đăng ký hợp lệ & 3 ảnh rõ mặt & Tạo embedding và trả thành công. \\
+Đăng ký thiếu ảnh & 1 ảnh & Báo lỗi thiếu ảnh. \\
+Điểm danh hợp lệ & 1 ảnh rõ mặt, MSSV tồn tại & Trả matched = true. \\
+Điểm danh sai người & Ảnh người khác & Trả matched = false. \\
+Không phát hiện mặt & Ảnh không có mặt & Báo lỗi chất lượng. \\
+\bottomrule
+\end{longtable}
+
+\section{Đánh giá hiệu năng}
+Mục tiêu hiệu năng đặt ra là thời gian phản hồi cho điểm danh trong vài giây. Thời gian xử lý phụ thuộc vào tốc độ tải ảnh, hiệu năng của worker AI, và thời gian truy vấn Qdrant. Với kiến trúc hiện tại, hệ thống có thể mở rộng bằng cách tăng số lượng worker và tối ưu mô hình AI.
+
+\chapter{Hạn chế và hướng phát triển}
+
+\section{Hạn chế}
+\begin{itemize}
+	\item Phụ thuộc vào chất lượng ảnh đầu vào.
+	\item Thời gian đăng ký có thể lâu nếu nhiều ảnh/video.
+	\item Chưa có cơ chế phân quyền chi tiết cho nhiều vai trò.
+\end{itemize}
+
+\section{Hướng phát triển}
+\begin{itemize}
+	\item Bổ sung cơ chế nhận diện đa khuôn mặt trong một khung hình.
+	\item Tích hợp kiểm tra chống giả mạo (liveness detection).
+	\item Hỗ trợ phân quyền chi tiết theo lớp học hoặc môn học.
+	\item Tích hợp dashboard phân tích dữ liệu theo thời gian thực.
+\end{itemize}
+
+\chapter{Kết luận}
+Hệ thống điểm danh thông minh đã được thiết kế và triển khai theo kiến trúc microservices, tận dụng pipeline AI để nhận diện khuôn mặt. Kết quả cho thấy hệ thống đáp ứng đầy đủ yêu cầu chức năng, có khả năng triển khai và mở rộng. Trong tương lai, hệ thống có thể được cải tiến thêm về bảo mật, hiệu năng và trải nghiệm người dùng.
+
+\begin{thebibliography}{9}
+\bibitem{deepface} DeepFace: \url{https://github.com/serengil/deepface}
+\bibitem{qdrant} Qdrant Vector Database: \url{https://qdrant.tech/}
+\bibitem{fastapi} FastAPI: \url{https://fastapi.tiangolo.com/}
+\bibitem{celery} Celery: \url{https://docs.celeryq.dev/}
+\end{thebibliography}
+
+\end{document}

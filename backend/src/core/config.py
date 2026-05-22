@@ -45,9 +45,9 @@ class Settings(BaseSettings):
     detection_confidence: float = Field(default=0.5, alias="DETECTION_CONF")
 
     # Image quality thresholds
-    image_blur_threshold: float = Field(default=35.0, alias="IMAGE_BLUR_THRESHOLD")
-    image_brightness_min: float = Field(default=40.0, alias="IMAGE_BRIGHTNESS_MIN")
-    image_brightness_max: float = Field(default=250.0, alias="IMAGE_BRIGHTNESS_MAX")
+    # image_blur_threshold: float = Field(default=35.0, alias="IMAGE_BLUR_THRESHOLD")
+    # image_brightness_min: float = Field(default=40.0, alias="IMAGE_BRIGHTNESS_MIN")
+    # image_brightness_max: float = Field(default=250.0, alias="IMAGE_BRIGHTNESS_MAX")
 
     model_config = SettingsConfigDict(
         env_file=".env",

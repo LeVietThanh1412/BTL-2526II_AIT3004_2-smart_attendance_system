@@ -9,11 +9,11 @@ logger = logging.getLogger(__name__)
 
 @celery_app.task(name="extract_face_embedding_task")
 def extract_face_embedding_task(image_url: str) -> dict:
-	"""Extract face embedding vector from an image (used during registration)."""
+	"""Trích xuất embedding khuôn mặt từ ảnh (dùng khi đăng ký)."""
 	if not image_url:
 		return {
 			"status": "failed",
-			"message": "Missing image URL.",
+			"message": "Thiếu đường dẫn ảnh.",
 		}
 
 	try:
@@ -24,25 +24,23 @@ def extract_face_embedding_task(image_url: str) -> dict:
 			"vector": vector,
 		}
 	except Exception as exc:
-		logger.error("Embedding extraction error: %s", exc)
+		logger.error("Lỗi trích xuất embedding: %s", exc)
 		return {
 			"status": "failed",
-			"message": f"Embedding extraction error: {exc}",
+			"message": f"Lỗi trích xuất embedding: {exc}",
 		}
 
 
 @celery_app.task(name="recognize_face_task")
 def recognize_face_task(image_url: str, student_id: str = "") -> dict:
-	"""Recognize a face from an image, filtered by student_id.
+	"""Nhận diện khuôn mặt từ ảnh, lọc theo student_id.
 
-	Nhan dien khuon mat tu anh, loc theo student_id.
+	Tham số:
+		image_url: URL ảnh đã tải lên trong MinIO
+		student_id: Mã sinh viên để lọc tìm kiếm trong Qdrant
 
-	Args:
-		image_url: URL of the uploaded image in MinIO
-		student_id: Student ID to filter Qdrant search
-
-	Returns:
-		dict with status, student_id, score, threshold, matched, reason, message
+	Trả về:
+		dict gồm status, student_id, score, threshold, matched, reason, message
 	"""
 	threshold = float(os.getenv("FACE_MATCH_THRESHOLD", "0.68"))
 
@@ -71,12 +69,12 @@ def recognize_face_task(image_url: str, student_id: str = "") -> dict:
 	try:
 		engine = FaceEngine()
 
-		# Step 1: Extract embedding (includes quality checks and face alignment)
+		# Bước 1: Trích xuất embedding (gồm kiểm tra chất lượng và căn chỉnh khuôn mặt)
 		try:
 			vector = engine.extract_vector(image_url)
 		except ValueError as exc:
-			# Quality check or face detection failure
-			logger.warning("Image quality/detection error for student_id=%s: %s", student_id, exc)
+			# Lỗi kiểm tra chất lượng hoặc phát hiện khuôn mặt
+			logger.warning("Lỗi chất lượng ảnh/phát hiện khuôn mặt cho student_id=%s: %s", student_id, exc)
 			return {
 				"status": "quality_error",
 				"student_id": student_id,
@@ -87,7 +85,7 @@ def recognize_face_task(image_url: str, student_id: str = "") -> dict:
 				"message": str(exc),
 			}
 
-		# Step 2: Search Qdrant filtered by student_id
+		# Bước 2: Tìm kiếm Qdrant theo student_id
 		match = engine.search_qdrant(vector, student_id)
 
 		score = float(match.get("score", 0.0))
@@ -96,7 +94,7 @@ def recognize_face_task(image_url: str, student_id: str = "") -> dict:
 
 		if matched:
 			logger.info(
-				"Recognition SUCCESS: student_id=%s, score=%.4f, threshold=%.4f",
+				"Nhận diện THÀNH CÔNG: student_id=%s, score=%.4f, threshold=%.4f",
 				student_id, score, threshold,
 			)
 			return {
@@ -110,7 +108,7 @@ def recognize_face_task(image_url: str, student_id: str = "") -> dict:
 			}
 
 		logger.info(
-			"Recognition FAILED: student_id=%s, score=%.4f, threshold=%.4f, reason=%s",
+			"Nhận diện THẤT BẠI: student_id=%s, score=%.4f, threshold=%.4f, reason=%s",
 			student_id, score, threshold, reason,
 		)
 		return {
@@ -124,7 +122,7 @@ def recognize_face_task(image_url: str, student_id: str = "") -> dict:
 		}
 
 	except Exception as exc:
-		logger.error("Recognition error for student_id=%s: %s", student_id, exc, exc_info=True)
+		logger.error("Lỗi nhận diện cho student_id=%s: %s", student_id, exc, exc_info=True)
 		return {
 			"status": "failed",
 			"student_id": student_id,

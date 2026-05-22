@@ -1,0 +1,48 @@
+@startuml UseCase_Diagram
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam linetype ortho
+
+' Custom styles for a clean, modern look
+skinparam usecase {
+    BackgroundColor LightCyan
+    BorderColor SteelBlue
+    ArrowColor DimGray
+    FontName Arial
+}
+skinparam actor {
+    BackgroundColor White
+    BorderColor SteelBlue
+    FontName Arial
+}
+
+actor "Sinh viên" as SV
+actor "Quản lý / Giảng viên" as GV
+
+rectangle "Smart Attendance System" {
+    
+    ' Nhóm Use case của Sinh viên
+    usecase "Đăng ký khuôn mặt" as UC_Register
+    usecase "Điểm danh (Attendance)" as UC_CheckIn
+    usecase "Xem lịch sử cá nhân" as UC_PersonalHistory
+    
+    ' Nhóm Use case của Quản lý / Giảng viên
+    usecase "Quản lý sinh viên" as UC_ManageStudents
+    usecase "Xem báo cáo tổng hợp" as UC_ViewReport
+    usecase "Xuất file điểm danh\n(Excel/CSV)" as UC_ExportReport
+}
+
+' Phân quyền Sinh viên
+SV --> UC_Register
+SV --> UC_CheckIn
+SV --> UC_PersonalHistory
+
+' Phân quyền Quản lý / Giảng viên
+GV --> UC_ManageStudents
+GV --> UC_ViewReport
+GV --> UC_ExportReport
+
+' Giảng viên cũng có thể xem lịch sử cá nhân của sinh viên từ báo cáo
+UC_PersonalHistory .up.> UC_ViewReport : <<extend>>
+@enduml

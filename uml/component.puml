@@ -1,0 +1,51 @@
+@startuml Component_Diagram
+skinparam componentStyle uml2
+skinparam linetype ortho
+skinparam nodesep 50
+skinparam ranksep 50
+
+actor "Người dùng\n(Sinh viên/Giảng viên)" as User
+
+node "Docker Host / Máy chủ" {
+    
+    component "Nginx (Reverse Proxy & Static Server)" as Nginx {
+        [React UI Static Files]
+    }
+
+    package "Backend Service" {
+        [FastAPI App (REST API)] as FastAPI
+    }
+
+    package "AI Background Worker" {
+        [Celery Worker] as Celery
+        note right of Celery : Sử dụng DeepFace\nvà MTCNN
+    }
+
+    package "Data & Storage Layer" {
+        database "Redis" as Redis
+        note right of Redis : Task Queue &\nMessage Broker
+        
+        database "MySQL" as MySQL
+        note right of MySQL : Lưu User, Logs
+        
+        database "Qdrant" as Qdrant
+        note right of Qdrant : Vector Database
+        
+        database "MinIO" as MinIO
+        note right of MinIO : Object Storage\n(Lưu ảnh)
+    }
+}
+
+User -right-> Nginx : HTTP/HTTPS (Port 80)
+Nginx --> FastAPI : Phân luồng API (/api)
+
+FastAPI --> MinIO : Upload/Download ảnh
+FastAPI --> MySQL : Đọc/Ghi dữ liệu (SQLAlchemy)
+FastAPI -down-> Redis : Đẩy Task nhận diện
+
+Redis <-down- Celery : Lấy Task cần xử lý
+Celery -up-> MinIO : Tải ảnh gốc để xử lý
+Celery -up-> Qdrant : Extract & Search Vector
+Celery -up-> Redis : Trả kết quả Task
+
+@enduml

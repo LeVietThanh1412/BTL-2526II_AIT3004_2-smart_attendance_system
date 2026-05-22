@@ -1,0 +1,59 @@
+@startuml Deployment_Diagram
+skinparam node {
+    BackgroundColor White
+    BorderColor Black
+}
+skinparam linetype ortho
+skinparam nodesep 40
+skinparam ranksep 50
+
+node "Client Device" <<PC / Smartphone>> {
+    artifact "Web Browser" as Browser
+}
+
+node "Server / VM (Linux)" <<Docker Host>> {
+    
+    node "Nginx Container" <<Docker>> {
+        artifact "nginx.conf"
+        artifact "React Static Build"
+    }
+
+    node "Backend Container" <<Docker>> {
+        artifact "uvicorn server\n(FastAPI)"
+    }
+
+    node "Worker Container" <<Docker>> {
+        artifact "celery daemon"
+        artifact "AI Models\n(MTCNN/DeepFace)"
+    }
+
+    node "MySQL Container" <<Docker>> {
+        artifact "mysqld"
+    }
+
+    node "Redis Container" <<Docker>> {
+        artifact "redis-server"
+    }
+    
+    node "Qdrant Container" <<Docker>> {
+        artifact "qdrant"
+    }
+
+    node "MinIO Container" <<Docker>> {
+        artifact "minio server"
+    }
+}
+
+' Connections
+Browser .right.> [Nginx Container] : HTTP (Port 80)
+[Nginx Container] .right.> [Backend Container] : Proxy Pass\n(Internal Port 8000)
+
+[Backend Container] ..> [MySQL Container] : TCP (Port 3306)
+[Backend Container] ..> [Redis Container] : TCP (Port 6379)
+[Backend Container] ..> [MinIO Container] : TCP (Port 9000)
+
+[Worker Container] ..> [Redis Container] : TCP (Port 6379)
+[Worker Container] ..> [MinIO Container] : TCP (Port 9000)
+[Worker Container] ..> [Qdrant Container] : TCP (Port 6333)
+
+@enduml

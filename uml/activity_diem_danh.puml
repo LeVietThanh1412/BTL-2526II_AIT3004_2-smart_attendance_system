@@ -1,0 +1,42 @@
+@startuml Activity_DiemDanh
+skinparam linetype ortho
+skinparam conditionStyle inside
+skinparam wrapWidth 200
+skinparam nodesep 40
+skinparam ranksep 40
+
+start
+:Sinh viên nhập MSSV & quét mặt;
+:Frontend gửi Request (/api/v1/attendance/check-in);
+
+:Backend upload ảnh lên MinIO;
+:Backend gửi Task điểm danh vào Redis (Broker);
+
+fork
+    :Backend chờ kết quả từ Celery;
+fork again
+    :AI Worker nhận Task từ Redis;
+    :Worker tải ảnh từ MinIO;
+    :Worker chạy MTCNN detect khuôn mặt;
+    
+    if (Phát hiện mặt?) then (Có)
+        :Worker trích xuất Current Vector (DeepFace);
+        :Worker Query Qdrant tìm Vector tương đồng nhất;
+        :Worker trả kết quả (Similarity Score) về Backend;
+    else (Không)
+        :Worker trả về lỗi: Không thấy khuôn mặt;
+    endif
+end merge
+
+:Backend nhận kết quả từ Worker;
+
+if (Độ tương đồng >= Ngưỡng cho phép?) then (Đúng - Khớp mặt)
+    :Ghi log "Thành công" vào MySQL;
+    :Trả về kết quả: Điểm danh thành công;
+else (Sai - Không khớp / Lỗi)
+    :Ghi log "Thất bại" vào MySQL;
+    :Trả về lỗi: Khuôn mặt không khớp;
+endif
+
+stop
+@enduml

@@ -7,14 +7,32 @@ Các sơ đồ thiết kế chi tiết luồng dữ liệu và logic của hệ 
 
 * **Sơ đồ Use Case:** ![Use Case](uml/usecase.png)
 * **Sơ đồ Sequence:** ![Sequence Diagram](uml/sequency.png)
-* **Sơ đồ Deployment:** ![Deployment](uml/Deployment.png)
-* **Sơ đồ Activity (Điểm danh):** ![Activity](uml/Activity_diem_danh.png)
+* **Sơ đồ Deployment:** ![Deployment](uml/deployment.png)
+* **Sơ đồ Activity (Điểm danh):** ![Activity](uml/activity_diem_danh.png)
 
 ## Kiến trúc hệ thống
 
 Hệ thống được xây dựng trên kiến trúc Microservices để tối ưu hóa việc xử lý AI và đảm bảo tính mở rộng.
 
-![Sơ đồ kiến trúc](uml/Component.png)
+![Sơ đồ kiến trúc](uml/component.png)
+
+## Pipeline AI
+
+### 1) Luồng đăng ký (Registration)
+1. Client gửi danh sách ảnh kèm MSSV lên Backend.
+2. Backend gửi ảnh sang Worker.
+3. Worker chạy YOLO để detect/crop khuôn mặt, trích xuất embedding cho từng ảnh.
+4. Worker tính master embedding và trả về Backend.
+5. Backend lưu thông tin sinh viên + master embedding vào MySQL.
+6. Backend cache master embedding vào Redis và lưu ảnh gốc vào MinIO (audit).
+
+### 2) Luồng điểm danh (Attendance)
+1. Client gửi MSSV + frame ảnh hiện tại lên Backend.
+2. Backend lấy master embedding từ Redis (cache miss thì query MySQL và nạp lại Redis).
+3. Backend gửi frame ảnh sang Worker để detect/crop và trích xuất current embedding.
+4. Backend tính cosine similarity giữa current embedding và master embedding.
+5. Nếu vượt ngưỡng: ghi log thành công, trả kết quả điểm danh.
+6. Nếu không vượt ngưỡng hoặc không phát hiện mặt: ghi log thất bại và trả lỗi.
 
 ## Cấu trúc thư mục
 ```
@@ -25,55 +43,102 @@ Hệ thống được xây dựng trên kiến trúc Microservices để tối �
 │   ├── requirements.txt
 │   └── src
 │       ├── api
+│       │   ├── __init__.py
 │       │   └── v1
 │       │       ├── attendance.py
 │       │       ├── auth.py
 │       │       ├── dashboard.py
+│       │       ├── __init__.py
 │       │       └── members.py
 │       ├── core
 │       │   ├── celery_client.py
 │       │   ├── config.py
+│       │   ├── __init__.py
 │       │   ├── qdrant_client.py
 │       │   └── security.py
 │       ├── database
-│       │   └── Base.py
+│       │   ├── Base.py
+│       │   └── __init__.py
+│       ├── __init__.py
 │       ├── main.py
 │       ├── models
 │       │   ├── attendance.py
 │       │   ├── face_embedding.py
+│       │   ├── __init__.py
 │       │   └── user.py
 │       ├── schemas
 │       │   ├── attendance.py
+│       │   ├── __init__.py
 │       │   └── user.py
 │       ├── services
+│       │   ├── __init__.py
 │       │   ├── member_service.py
 │       │   ├── redis_query.py
 │       │   └── storages.py
 │       └── utils
+│           ├── __init__.py
 │           └── video_processor.py
+├── docker-compose-network.yml
+├── docker-compose.yml
+├── document.md
 ├── frontend
 │   ├── Dockerfile
 │   ├── index.html
 │   ├── package.json
+│   ├── pnpm-lock.yaml
+│   ├── public
+│   │   ├── favicon.ico
+│   │   └── manifest.json
 │   ├── src
-│   │   ├── admin/
-│   │   ├── user/
-│   │   ├── shared/
+│   │   ├── admin
+│   │   │   ├── AdminSidebar.vue
+│   │   │   ├── Dashbroad.vue
+│   │   │   ├── pages
+│   │   │   │   ├── AttendanceLogs.vue
+│   │   │   │   ├── Dashboard.vue
+│   │   │   │   └── RegisterAttendance.vue
+│   │   │   ├── RecentActivity.vue
+│   │   │   ├── StatCard.vue
+│   │   │   └── TopHeader.vue
 │   │   ├── App.vue
-│   │   └── main.js
+│   │   ├── main.js
+│   │   ├── router.js
+│   │   ├── shared
+│   │   │   ├── api.js
+│   │   │   ├── dateUtils.js
+│   │   │   └── styles.css
+│   │   └── user
+│   │       └── CheckIn.vue
 │   └── vite.config.js
+├── ke_hoach_trien_khai.md
 ├── nginx
 │   ├── Dockerfile
 │   └── nginx.conf
-├── worker
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── src
-│       ├── celery_app.py
-│       ├── face_engine.py
-│       └── tasks.py
-├── docker-compose.yml
-└── README.md
+├── README.md
+├── todo.txt
+├── uml
+│   ├── Activity_diem_danh.png
+│   ├── activity_diem_danh.puml
+│   ├── Component.png
+│   ├── component.puml
+│   ├── Deployment.png
+│   ├── deployment.puml
+│   ├── README.md
+│   ├── requirements.md
+│   ├── sequence.puml
+│   ├── sequency.png
+│   ├── usecase.png
+│   └── usecase.puml
+└── worker
+    ├── Dockerfile
+    ├── requirements.txt
+    └── src
+        ├── celery_app.py
+        ├── face_engine.py
+        ├── __init__.py
+        └── tasks.py
+
+22 directories, 79 files
 ```
 
 
@@ -99,9 +164,9 @@ Hệ thống được xây dựng trên kiến trúc Microservices để tối �
 
 ## Cách chạy trên máy
 
-Sử dụng lệnh docker build
+Sử dụng lệnh docker compose:
 ```
-#Build từng images
+# Build từng images
 docker compose build
 
 # Chạy các images
@@ -114,39 +179,28 @@ docker compose logs -f
 Nếu máy bạn đã dùng cổng `3306`, hãy đổi `MYSQL_PORT` trong file `.env` sang một cổng khác, ví dụ `3307`, rồi chạy lại `docker compose up -d`.
 
 ## Hướng dẫn triển khai (Deployment)
-Hệ thống đã được đóng gói dưới dạng Docker Images trên Docker Hub. Để chạy toàn bộ hệ thống mà không cần cài đặt môi trường code, chỉ cần thực hiện các bước sau:
-
-## Docker sẽ tự động kéo các Image từ Docker Hub:
-* `levietthanh1412/attendance-backend:v1`
-* `levietthanh1412/attendance-frontend:v1`
-* `levietthanh1412/attendance-worker:v1`
-* `levietthanh1412/attendance-nginx:v1`
+Hệ thống đã được đóng gói dưới dạng Docker Images trên Docker Hub. Để chạy toàn bộ hệ thống mà không cần cài đặt môi trường code, thực hiện các bước sau:
 
 1. Chuẩn bị
-Tải file docker-compose.yml về máy và tạo file .env cùng cấp với các thông số mẫu từ .env.example.
+    - Tải file docker-compose.yml về máy.
+    - Tạo file .env cùng cấp với các thông số mẫu từ .env.example.
 
 2. Khởi chạy
-Tại thư mục chứa file docker-compose.yml, chạy lệnh:
-
+    - Tại thư mục chứa docker-compose.yml, chạy:
 ```
 docker compose up -d
 ```
 
-Docker sẽ tự động kéo các Image từ Docker Hub:
+Docker sẽ tự động kéo các image sau:
 ```
-levietthanh1412/attendance-backend:v1
-
-levietthanh1412/attendance-frontend:v1
-
-levietthanh1412/attendance-worker:v1
-
-levietthanh1412/attendance-nginx:v1
+levietthanh1412/attendance-backend:v2
+levietthanh1412/attendance-frontend:v2
+levietthanh1412/attendance-worker:v2
+levietthanh1412/attendance-nginx:v2
 ```
 
 3. Địa chỉ truy cập
-
-Frontend: http://localhost:8080
-
-API Swagger: http://localhost:8000/docs
-
-MinIO Storage: http://localhost:9001
+- Frontend: http://localhost:8080
+- API Swagger: http://localhost:8000/docs
+- MinIO Storage: http://localhost:9001
+- Demo: attendance.thanhtech.cloud

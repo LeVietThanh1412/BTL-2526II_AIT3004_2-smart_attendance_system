@@ -1,0 +1,100 @@
+@startuml
+skinparam maxMessageSize 150
+skinparam linetype ortho
+skinparam ParticipantPadding 20
+skinparam BoxPadding 10
+
+actor Client as "Client\n(Camera/Web)"
+box "API Layer" #LightCyan
+participant Backend as "FastAPI\n(Backend)"
+end box
+box "AI & Worker Layer" #LightYellow
+participant Worker as "Celery Worker\n(DeepFace/MTCNN)"
+end box
+box "Data & Storage Layer" #LightGreen
+participant MinIO as "MinIO\n(Object Storage)"
+participant Redis as "Redis\n(Broker/Cache)"
+participant Qdrant as "Qdrant\n(Vector DB)"
+participant MySQL as "MySQL\n(RDBMS)"
+end box
+
+== 1. LUỒNG ĐĂNG KÝ (Registration) ==
+Client -> Backend: POST /api/v1/members/register\n{student_id, list_images}
+activate Backend
+
+Backend -> MinIO: 1. Upload danh sách ảnh gốc
+activate MinIO
+MinIO --> Backend: Trả về danh sách image_urls
+deactivate MinIO
+
+Backend -> Redis: 2. Gửi task trích xuất & lưu vector (Task Queue)
+activate Redis
+Redis -> Worker: Phân phối task tới Worker
+activate Worker
+
+Worker -> MinIO: 3. Tải ảnh từ image_urls về
+activate MinIO
+MinIO --> Worker: Trả về dữ liệu ảnh
+deactivate MinIO
+
+Worker -> Worker: 4. MTCNN detect mặt\n& DeepFace trích xuất Embedding Vector
+Worker -> Qdrant: 5. Lưu (Upsert) Vector kèm payload (student_id)
+activate Qdrant
+Qdrant --> Worker: Xác nhận lưu thành công
+deactivate Qdrant
+
+Worker --> Redis: Cập nhật trạng thái task thành công
+deactivate Worker
+Redis --> Backend: Xác nhận task hoàn tất
+deactivate Redis
+
+Backend -> MySQL: 6. Lưu thông tin User & danh sách image_urls
+activate MySQL
+MySQL --> Backend: OK
+deactivate MySQL
+
+Backend --> Client: 7. Trả về: Đăng ký thành công
+deactivate Backend
+
+== 2. LUỒNG ĐIỂM DANH (Attendance Check-in) ==
+Client -> Backend: POST /api/v1/attendance/check-in\n{student_id, current_frame}
+activate Backend
+
+Backend -> MinIO: 8. Upload current_frame (Ảnh điểm danh)
+activate MinIO
+MinIO --> Backend: Trả về image_url
+deactivate MinIO
+
+Backend -> Redis: 9. Gửi task nhận diện khuôn mặt
+activate Redis
+Redis -> Worker: Phân phối task
+activate Worker
+
+Worker -> MinIO: 10. Tải ảnh điểm danh về
+Worker -> Worker: 11. MTCNN detect mặt & trích xuất Vector
+Worker -> Qdrant: 12. Search Similarity (Tìm Vector gần nhất)
+activate Qdrant
+Qdrant --> Worker: Trả về kết quả (Điểm tương đồng & student_id)
+deactivate Qdrant
+
+Worker --> Redis: Trả về kết quả matching
+deactivate Worker
+Redis --> Backend: Nhận kết quả từ Task
+deactivate Redis
+
+alt Kết quả khớp & Độ tương đồng >= Threshold
+    Backend -> MySQL: 13a. Ghi nhận log điểm danh (Thành công)
+    activate MySQL
+    MySQL --> Backend: OK
+    deactivate MySQL
+    Backend --> Client: 14a. Trả về: Điểm danh thành công
+else Không khớp mặt hoặc không tìm thấy mặt
+    Backend -> MySQL: 13b. Ghi nhận log điểm danh (Thất bại)
+    activate MySQL
+    MySQL --> Backend: OK
+    deactivate MySQL
+    Backend --> Client: 14b. Trả về lỗi: Khuôn mặt không khớp
+end
+
+deactivate Backend
+@enduml

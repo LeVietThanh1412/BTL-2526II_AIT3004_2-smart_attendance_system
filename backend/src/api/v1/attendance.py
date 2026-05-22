@@ -25,18 +25,17 @@ async def check_in(
     camera_id: str = Form(default=settings.default_camera_id),
     db: Session = Depends(get_db),
 ):
-    """Diem danh bang hinh anh chup tu camera kem ma sinh vien.
-    Check-in using image from camera with student ID.
+    """Điểm danh bằng hình ảnh chụp từ camera kèm mã sinh viên.
 
-    Steps:
-    1. Validate student_id exists in database
-    2. Validate student has face vectors in Qdrant
-    3. Validate image format
-    4. Upload to MinIO storage
-    5. Send to worker for face recognition (filtered by student_id)
-    6. Return check-in result with match_score, threshold, matched, reason"""
+    Các bước:
+    1. Kiểm tra student_id có tồn tại trong database không
+    2. Lấy vector khuôn mặt tham chiếu (Redis cache → Qdrant fallback)
+    3. Kiểm tra định dạng ảnh
+    4. Tải ảnh lên MinIO storage
+    5. Gửi tới worker cùng reference_vector để so sánh trực tiếp 1-1
+    6. Trả về kết quả điểm danh với điểm khớp (match_score), ngưỡng, trạng thái khớp và lý do"""
 
-    # --- Step 1: Validate student_id exists in database ---
+    # --- Bước 1: Kiểm tra student_id có tồn tại trong database ---
     user = db.query(User).filter(User.student_id == student_id).first()
     if user is None:
         logger.warning("Check-in failed: student_id=%s not found in database", student_id)
@@ -45,7 +44,7 @@ async def check_in(
             detail=f"Mã sinh viên '{student_id}' không tồn tại trong hệ thống.",
         )
 
-    # --- Step 2: Validate student has vectors in Qdrant ---
+    # --- Bước 2: Kiểm tra sinh viên đã đăng ký khuôn mặt trên Qdrant chưa ---
     if not has_vectors_for_student(student_id):
         logger.warning("Check-in failed: student_id=%s has no face vectors", student_id)
         raise HTTPException(
@@ -53,21 +52,21 @@ async def check_in(
             detail=f"Sinh viên '{student_id}' chưa đăng ký khuôn mặt. Vui lòng đăng ký trước.",
         )
 
-    # --- Step 3: Validate image format ---
+    # --- Bước 3: Kiểm tra định dạng ảnh ---
     if not image.content_type or not image.content_type.startswith("image/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Tệp tải lên phải là hình ảnh (jpg, png, webp, ...).",
         )
 
-    # --- Step 4: Upload to MinIO ---
+    # --- Bước 4: Tải lên MinIO ---
     file_bytes = await image.read()
     minio_url = minio_service.upload_image(
         file_bytes=file_bytes,
         filename=image.filename or "capture.jpg",
     )
 
-    # --- Step 5: Send to worker with student_id ---
+    # --- Bước 5: Gửi thông tin tới worker để xử lý ---
     async_result = recognize_face_task.delay(minio_url, student_id)
 
     try:
@@ -84,7 +83,7 @@ async def check_in(
             detail="Worker nhận dạng khuôn mặt gặp lỗi. Vui lòng thử lại.",
         ) from exc
 
-    # --- Step 6: Process worker result ---
+    # --- Bước 6: Xử lý kết quả trả về từ worker ---
     if not isinstance(worker_result, dict):
         worker_result = {
             "status": "failed",
@@ -103,7 +102,7 @@ async def check_in(
     reason = worker_result.get("reason", "")
     message = worker_result.get("message", f"Điểm danh hoàn tất từ camera {camera_id}.")
 
-    # Determine attendance status
+    # Xác định trạng thái điểm danh
     if matched and status_value == "success":
         status_enum = AttendanceStatus.success
     elif status_value == "quality_error":
@@ -111,13 +110,13 @@ async def check_in(
     else:
         status_enum = AttendanceStatus.failed
 
-    # Log result for debugging
+    # Ghi log kết quả để debug
     logger.info(
         "Check-in result: student_id=%s, match_score=%.4f, threshold=%.4f, matched=%s, reason=%s",
         student_id, score, threshold, matched, reason,
     )
 
-    # --- Save attendance record ---
+    # --- Lưu lịch sử điểm danh ---
     attendance = Attendance(
         user_id=user.id,
         confidence_score=score,
@@ -146,7 +145,7 @@ async def check_in(
     )
 
 
-# Legacy backend attendance endpoints (commented to preserve differences)
+# Các endpoint cũ (giữ lại dưới dạng comment để tham khảo)
 # @router.post("/verify", response_model=AttendanceVerifyResponse, status_code=status.HTTP_202_ACCEPTED)
 # def verify_attendance(payload: AttendanceVerifyRequest):
 #     """

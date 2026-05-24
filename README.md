@@ -11,6 +11,10 @@ Hệ thống điểm danh tự động bằng nhận diện khuôn mặt (Face R
 - **Kiến trúc Cloud-Native**: Lưu trữ ảnh gốc qua Object Storage (**MinIO**).
 - **Thiết kế Microservices**: 7 container độc lập chạy mượt mà thông qua `docker-compose`.
 - **Tính năng nâng cao mới**:
+  - **Quản lý ca học (Shift Management)**: Sinh viên phải đăng ký lịch học theo các ca trong tuần. Hệ thống tự động đối chiếu lịch học với thời gian điểm danh thực tế.
+  - **Thủ tục Check-out**: Sinh viên bắt buộc phải điểm danh khi ra về (Check-out). Hệ thống có logic cảnh báo và đánh dấu lỗi nếu sinh viên check-out sớm hơn 30 phút so với giờ tan học của ca cuối cùng.
+  - **Đánh dấu vắng mặt tự động**: Job chạy ngầm tự động vào 23:59 mỗi ngày để quét và đánh dấu vắng không phép cho các sinh viên có lịch học nhưng không đi học hoặc có đến nhưng quên check-out.
+  - **Tùy chỉnh trạng thái**: Quản trị viên (Admin) có thể chỉnh sửa trạng thái điểm danh (từ vắng thành có phép, đi muộn, hoặc lý do khác).
   - **Xuất báo cáo Excel (CSV)**: Thêm nút tải nhanh báo cáo điểm danh dạng file CSV mã hoá UTF-8 BOM giúp mở ngay trên Microsoft Excel không bị lỗi font chữ.
   - **Realtime Dashboard**: Trang quản trị nhật ký điểm danh tự động cập nhật log mới mỗi 5 giây (Polling) giúp Admin giám sát trực quan không cần bấm tải lại trang.
 

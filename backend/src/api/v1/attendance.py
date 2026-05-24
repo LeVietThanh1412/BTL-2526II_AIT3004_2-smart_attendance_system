@@ -16,7 +16,17 @@ from src.schemas.attendance import AttendanceCheckResponse
 from src.services.storages import minio_service
 from src.api.v1.auth import get_current_admin
 
+from src.models.schedule import StudentSchedule
+from datetime import datetime, time, timedelta
+
 logger = logging.getLogger(__name__)
+
+SHIFTS = {
+    1: {"start": time(7, 0), "end": time(9, 40)},
+    2: {"start": time(9, 50), "end": time(12, 30)},
+    3: {"start": time(13, 30), "end": time(16, 10)},
+    4: {"start": time(16, 20), "end": time(19, 0)},
+}
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
 
@@ -51,6 +61,23 @@ async def check_in(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Sinh viên '{student_id}' chưa được Giảng viên duyệt.",
+        )
+
+    # --- Kiểm tra lịch học ---
+    today = datetime.now()
+    current_date = today.date()
+    current_time = today.time()
+    day_of_week = today.weekday() # 0 is Monday
+    
+    schedule = db.query(StudentSchedule).filter(
+        StudentSchedule.user_id == user.id,
+        StudentSchedule.day_of_week == day_of_week
+    ).first()
+    
+    if not schedule:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bạn không có lịch học đã đăng ký trong ngày hôm nay.",
         )
 
     # --- Bước 2: Kiểm tra sinh viên đã đăng ký khuôn mặt trên Qdrant chưa ---
@@ -125,16 +152,54 @@ async def check_in(
         student_id, score, threshold, matched, reason,
     )
 
-    # --- Lưu lịch sử điểm danh ---
-    attendance = Attendance(
-        user_id=user.id,
-        confidence_score=score,
-        camera_id=camera_id,
-        status=status_enum,
-    )
+    # --- Xử lý Check-in / Check-out (Multi-Session) ---
+    # Parse lịch học
+    shift_ids = [int(s.strip()) for s in schedule.shifts.split(",") if s.strip().isdigit()]
+    if not shift_ids:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Lịch học bị lỗi định dạng.")
+
+    last_shift = max(shift_ids)
+    end_time_of_last_shift = SHIFTS[last_shift]["end"]
+
+    # Ràng buộc thời gian hệ thống
+    if current_time < time(5, 30):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Hệ thống điểm danh chỉ mở từ 5h30 sáng."
+        )
+
+    # Lấy bản ghi attendance gần nhất của user hôm nay
+    attendance = db.query(Attendance).filter(
+        Attendance.user_id == user.id,
+        Attendance.attendance_date == current_date
+    ).order_by(Attendance.check_in_time.desc()).first()
+
+    if not attendance or attendance.check_out_time is not None:
+        # Đây là Check-in MỚI (Mở 1 phiên mới)
+        if current_time > end_time_of_last_shift:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Ca học cuối cùng của bạn đã kết thúc, không thể điểm danh vào thêm."
+            )
+        attendance = Attendance(
+            user_id=user.id,
+            attendance_date=current_date,
+            check_in_time=today,
+            confidence_score=score,
+            camera_id=camera_id,
+            status=status_enum,
+        )
+        message = f"Check-in thành công ({today.strftime('%H:%M:%S')})."
+        db.add(attendance)
+    else:
+        # Đây là Check-out của phiên hiện tại
+        attendance.check_out_time = today
+        attendance.status = AttendanceStatus.success # Ghi nhận check-out thành công
+        attendance.confidence_score = score
+        attendance.camera_id = camera_id
+        message = f"Check-out thành công ({today.strftime('%H:%M:%S')})."
 
     try:
-        db.add(attendance)
         db.commit()
     except Exception as exc:
         db.rollback()
@@ -155,6 +220,7 @@ async def check_in(
 
 
 class OverrideRequest(BaseModel):
+    status: str
     is_late_override: bool
     override_reason: str
 
@@ -175,6 +241,9 @@ def override_late_status(
     
     attendance.is_late_override = payload.is_late_override
     attendance.override_reason = payload.override_reason
+    if payload.status in [e.value for e in AttendanceStatus]:
+        attendance.status = AttendanceStatus(payload.status)
+        
     db.commit()
     
     return {"message": "Đã sửa trạng thái điểm danh thành công."}

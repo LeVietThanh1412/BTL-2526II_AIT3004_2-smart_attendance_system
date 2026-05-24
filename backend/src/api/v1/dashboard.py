@@ -48,8 +48,10 @@ class AttendanceLogItem(BaseModel):
     name: str
     time: str
     date: str
+    check_out_time: str | None = None
     status: str
     statusColor: str
+    raw_status: str
     camera_id: str
     confidence_score: float
     is_late_override: bool | None = None
@@ -118,10 +120,19 @@ def _build_status(attendance: Attendance) -> tuple[str, str]:
             late = attendance.is_late_override
         else:
             late = _is_late(attendance.check_in_time)
-        return ("Đi muộn" if late else "Đúng giờ", "red" if late else "green")
+        return ("Đi muộn" if late else "Có mặt", "red" if late else "green")
 
     if attendance.status == AttendanceStatus.failed:
-        return ("Không nhận diện", "red")
+        return ("Thất bại / Về sớm", "red")
+        
+    if attendance.status == AttendanceStatus.absent_unexcused:
+        return ("Vắng không phép", "red")
+        
+    if attendance.status == AttendanceStatus.absent_excused:
+        return ("Vắng có phép", "yellow")
+        
+    if attendance.status == AttendanceStatus.present_incomplete:
+        return ("Quên check-out", "yellow")
 
     return ("Không xác định", "yellow")
 
@@ -261,10 +272,12 @@ def get_attendance_logs(
                 id=attendance.id,
                 student_id=display_student_id,
                 name=display_name,
-                time=_fmt_time(dt),
-                date=_fmt_date(dt),
+                time=_fmt_time(dt) if dt else "--:--",
+                date=_fmt_date(dt) if dt else _fmt_date(attendance.attendance_date),
+                check_out_time=_fmt_time(attendance.check_out_time) if attendance.check_out_time else None,
                 status=status_label,
                 statusColor=color,
+                raw_status=attendance.status.value,
                 camera_id=attendance.camera_id,
                 confidence_score=float(attendance.confidence_score or 0.0),
                 is_late_override=attendance.is_late_override,
@@ -343,7 +356,7 @@ def export_attendance_logs(db: Session = Depends(get_db)):
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["ID", "Ma SV", "Ho Ten", "Thoi Gian", "Ngay", "Trang Thai", "Camera", "Do Chinh Xac"])
+    writer.writerow(["ID", "Ma SV", "Ho Ten", "Thoi Gian Vao", "Thoi Gian Ra", "Ngay", "Trang Thai", "Camera", "Do Chinh Xac"])
 
     def iter_csv():
         yield output.getvalue().encode('utf-8-sig') # BOM for Excel
@@ -360,8 +373,9 @@ def export_attendance_logs(db: Session = Depends(get_db)):
                 attendance.id,
                 display_student_id,
                 display_name,
-                _fmt_time(dt),
-                _fmt_date(dt),
+                _fmt_time(dt) if dt else "--:--",
+                _fmt_time(attendance.check_out_time) if attendance.check_out_time else "--:--",
+                _fmt_date(dt) if dt else _fmt_date(attendance.attendance_date),
                 status_label + (f" ({attendance.override_reason})" if attendance.override_reason else ""),
                 attendance.camera_id,
                 f"{float(attendance.confidence_score or 0.0):.4f}"

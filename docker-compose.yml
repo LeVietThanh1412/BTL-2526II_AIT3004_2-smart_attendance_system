@@ -91,10 +91,13 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      TZ: Asia/Ho_Chi_Minh
     expose:
       - "8000"
     networks:
       - attendance_net
+    volumes:
+      - ./backend/src:/app/src
 
   worker:
     build: ./worker
@@ -123,6 +126,7 @@ services:
       DEEPFACE_MODEL_NAME: ${DEEPFACE_MODEL_NAME:-ArcFace}
       FACE_DETECTOR_BACKEND: ${FACE_DETECTOR_BACKEND:-mtcnn}
       FACE_DETECTION_CONFIDENCE: ${FACE_DETECTION_CONFIDENCE:-0.5}
+      TZ: Asia/Ho_Chi_Minh
     networks:
       - attendance_net
     volumes:
@@ -159,6 +163,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET}
       BACKUP_INTERVAL: 86400
+      TZ: Asia/Ho_Chi_Minh
     volumes:
       - ./local_backups:/backups
     networks:

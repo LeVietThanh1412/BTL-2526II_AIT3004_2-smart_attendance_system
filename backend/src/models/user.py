@@ -27,6 +27,11 @@ class User(Base):
         back_populates="user",
         passive_deletes=True,
     )
+    schedules = relationship(
+        "StudentSchedule",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     
     attendance_logs = synonym("attendances")
 

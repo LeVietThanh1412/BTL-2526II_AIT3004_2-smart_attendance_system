@@ -36,7 +36,7 @@
                   <td>{{ rowIndex(idx) }}</td>
                   <td>{{ item.student_id || 'Không rõ' }}</td>
                   <td>{{ item.name }}</td>
-                  <td>{{ item.time }} - {{ item.date }}</td>
+                  <td>{{ item.time }} - {{ item.date }}<br><small v-if="item.check_out_time">Out: {{ item.check_out_time }}</small></td>
                   <td>
                     <div style="display: flex; flex-direction: column; gap: 4px;">
                       <div style="display: flex; align-items: center; gap: 6px;">
@@ -71,9 +71,12 @@
           
           <div class="form-group">
             <label>Trạng thái</label>
-            <select v-model="editData.is_late">
-              <option :value="false">Đúng giờ</option>
-              <option :value="true">Đi muộn</option>
+            <select v-model="editData.status">
+              <option value="success">Thành công / Có mặt</option>
+              <option value="failed">Thất bại / Về sớm</option>
+              <option value="absent_unexcused">Vắng không phép</option>
+              <option value="absent_excused">Vắng có phép</option>
+              <option value="present_incomplete">Có đến nhưng quên Check-out</option>
             </select>
           </div>
           
@@ -110,13 +113,15 @@ const totalItems = ref(0)
 const showOverrideModal = ref(false)
 const currentEditLog = ref(null)
 const editData = ref({
+  status: 'success',
   is_late: false,
   reason: ''
 })
 
 const openOverrideModal = (log) => {
   currentEditLog.value = log
-  editData.value.is_late = log.is_late_override ?? (log.status === 'Đi muộn')
+  editData.value.status = log.raw_status || 'success'
+  editData.value.is_late = log.is_late_override ?? false
   editData.value.reason = log.override_reason || ''
   showOverrideModal.value = true
 }
@@ -127,7 +132,7 @@ const saveOverride = async () => {
     return
   }
   try {
-    await overrideLateStatus(currentEditLog.value.id, editData.value.is_late, editData.value.reason)
+    await overrideLateStatus(currentEditLog.value.id, editData.value.status, editData.value.is_late, editData.value.reason)
     showOverrideModal.value = false
     await loadLogs()
   } catch (err) {

@@ -9,6 +9,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const Dashboard = () => import('./admin/pages/Dashboard.vue')
 const RegisterAttendance = () => import('./admin/pages/RegisterAttendance.vue')
+const RegisterSchedule = () => import('./admin/pages/RegisterSchedule.vue')
 const AttendanceLogs = () => import('./admin/pages/AttendanceLogs.vue')
 const Login = () => import('./admin/pages/Login.vue')
 const ManageMembers = () => import('./admin/pages/ManageMembers.vue')
@@ -21,6 +22,7 @@ const routes = [
     { path: '/login', name: 'Login', component: Login },
     { path: '/admin/dashboard', name: 'Dashboard', component: Dashboard, meta: { requiresAuth: true } },
     { path: '/admin/register', name: 'RegisterAttendance', component: RegisterAttendance },
+    { path: '/admin/schedule', name: 'RegisterSchedule', component: RegisterSchedule, meta: { requiresAuth: true } },
     { path: '/admin/attendance-logs', name: 'AttendanceLogs', component: AttendanceLogs, meta: { requiresAuth: true } },
     { path: '/admin/members', name: 'ManageMembers', component: ManageMembers, meta: { requiresAuth: true } },
 

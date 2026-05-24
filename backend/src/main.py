@@ -24,6 +24,10 @@ async def lifespan(app: FastAPI):
         import logging
         logging.getLogger(__name__).error(f"Lỗi khởi tạo Qdrant: {e}")
 
+    # Khởi động daily scheduler quét điểm danh
+    from src.core.scheduler import start_scheduler
+    start_scheduler()
+
     yield
 
 

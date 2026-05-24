@@ -1,9 +1,15 @@
 <template>
-  <div class="members-container">
-    <div class="header-actions">
-      <h2>Quản lý Sinh viên</h2>
-      <button @click="loadMembers" class="btn-refresh">Làm mới</button>
-    </div>
+  <div class="app-container">
+    <AdminSidebar />
+
+    <main class="content">
+      <TopHeader title="Quản lý Sinh viên" />
+
+      <div class="members-container">
+        <div class="header-actions">
+          <h2>Quản lý Sinh viên</h2>
+          <button @click="loadMembers" class="btn-refresh">Làm mới</button>
+        </div>
 
     <div v-if="loading" class="loading">Đang tải dữ liệu...</div>
     
@@ -48,11 +54,15 @@
         </tbody>
       </table>
     </div>
+      </div>
+    </main>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import AdminSidebar from '../AdminSidebar.vue'
+import TopHeader from '../TopHeader.vue'
 import { fetchMembers, approveMember, deleteMember } from '../../shared/api'
 
 const members = ref([])
@@ -97,11 +107,25 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.app-container {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+main.content {
+  flex-grow: 1;
+  padding: 25px 30px;
+  overflow-y: auto;
+}
+
 .members-container {
   padding: 1.5rem;
   background: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  margin-top: 10px;
 }
 
 .header-actions {

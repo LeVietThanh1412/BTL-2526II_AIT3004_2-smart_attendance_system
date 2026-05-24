@@ -1,0 +1,19 @@
+from pydantic import BaseModel, Field
+from typing import List
+
+class ScheduleBase(BaseModel):
+    day_of_week: int = Field(..., ge=0, le=5, description="0: Monday, 5: Saturday")
+    shifts: str = Field(..., description="Comma separated shifts, e.g. '1,2,3'")
+
+class ScheduleCreate(ScheduleBase):
+    pass
+
+class ScheduleResponse(ScheduleBase):
+    id: int
+    user_id: int
+
+    class Config:
+        from_attributes = True
+
+class ScheduleListUpdate(BaseModel):
+    schedules: List[ScheduleBase]

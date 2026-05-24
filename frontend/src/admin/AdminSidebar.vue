@@ -2,7 +2,7 @@
     <aside class="sidebar">
         <div>
             <div class="logo-area">
-                <div class="logo-icon">SA</div>
+                <img src="/iai-logo.jpg" alt="IAI Logo" class="logo-img" />
                 <div>
                     <h2 style="margin:0; font-size:16px;">Điểm danh thông minh</h2>
                     <p style="margin:0; color:var(--text-sub); font-size:10px;">Nhận diện khuôn mặt AI</p>
@@ -24,6 +24,11 @@
                     <li>
                         <router-link to="/admin/register" active-class="active">
                             <span>🎥</span> Đăng ký điểm danh
+                        </router-link>
+                    </li>
+                    <li>
+                        <router-link to="/admin/schedule" active-class="active">
+                            <span>📅</span> Đăng ký lịch học
                         </router-link>
                     </li>
                     <li>
@@ -78,17 +83,11 @@ aside.sidebar {
     margin-bottom: 35px;
 }
 
-.logo-icon {
-    width: 36px;
-    height: 36px;
-    background-color: var(--primary-color);
+.logo-img {
+    width: 40px;
+    height: 40px;
     border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: bold;
-    font-size: 18px;
+    object-fit: cover;
 }
 
 .nav-area {

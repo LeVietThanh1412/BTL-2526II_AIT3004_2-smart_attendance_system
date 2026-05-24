@@ -116,8 +116,9 @@ export const deleteMember = async (studentId) => {
   return data
 }
 
-export const overrideLateStatus = async (attendanceId, is_late_override, override_reason) => {
+export const overrideLateStatus = async (attendanceId, status, is_late_override, override_reason) => {
   const { data } = await apiClient.put(`/attendance/${attendanceId}/override`, {
+    status,
     is_late_override,
     override_reason
   })

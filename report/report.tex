@@ -460,14 +460,13 @@ Sử dụng các chỉ số Precision \& Recall để đánh giá AI trong các 
 \textbf{Điều kiện ánh sáng} & \textbf{Precision (Đúng người)} & \textbf{False Negative} & \textbf{False Positive} \\ \hline
 \textbf{Tiêu chuẩn (Phòng học)} & \textbf{99.1\%} & 0.9\% & 0.0\% \\ \hline
 \textbf{Ngược sáng / Tối} & 92.5\% & 7.5\% & 0.0\% \\ \hline
-\textbf{Đeo khẩu trang} & 85.0\% & 15.0\% & 0.0\% \\ \hline
 \end{tabular}
 \caption{Đánh giá độ chính xác theo điều kiện môi trường}
 \end{table}
 
 \textbf{Phân tích}: 
 \begin{itemize}
-    \item Hệ thống có tỷ lệ \textbf{False Positive (Nhận diện sai thành người khác) = 0\%} ở mọi điều kiện. Đây là sự điều chỉnh cố ý của nhóm bằng cách giữ Threshold ở mức cao (0.68). Trong bảo mật, việc "không nhận ra" (False Negative - sinh viên phải tháo khẩu trang ra quét lại) có thể chấp nhận được, nhưng việc "nhận diện sai" (điểm danh hộ) là tối kỵ.
+    \item Hệ thống có tỷ lệ \textbf{False Positive (Nhận diện sai thành người khác) = 0\%} ở mọi điều kiện. Đây là sự điều chỉnh cố ý của nhóm bằng cách giữ Threshold ở mức cao (0.68). Trong bảo mật, việc "không nhận ra" (False Negative - sinh viên phải quét lại) có thể chấp nhận được, nhưng việc "nhận diện sai" (điểm danh hộ) là tối kỵ.
 \end{itemize}
 
 \chapter{Kết luận \& Hướng phát triển}

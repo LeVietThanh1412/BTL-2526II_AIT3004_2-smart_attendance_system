@@ -92,6 +92,10 @@ services:
 
       TIME_LATE: ${TIME_LATE}
       DEFAULT_CAMERA_ID: ${DEFAULT_CAMERA_ID:-cam_01}
+
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
     expose:
       - "8000"
     networks:

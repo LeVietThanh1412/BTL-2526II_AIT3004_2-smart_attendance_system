@@ -4,6 +4,8 @@ from celery.exceptions import TimeoutError as CeleryTimeoutError
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
+from pydantic import BaseModel
+
 from src.core.celery_client import recognize_face_task
 from src.core.config import settings
 from src.core.qdrant_client import has_vectors_for_student
@@ -12,6 +14,7 @@ from src.models.attendance import Attendance, AttendanceStatus
 from src.models.user import User
 from src.schemas.attendance import AttendanceCheckResponse
 from src.services.storages import minio_service
+from src.api.v1.auth import get_current_admin
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,12 @@ async def check_in(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Mã sinh viên '{student_id}' không tồn tại trong hệ thống.",
+        )
+    if not user.is_approved:
+        logger.warning("Check-in failed: student_id=%s is not approved yet", student_id)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Sinh viên '{student_id}' chưa được Giảng viên duyệt.",
         )
 
     # --- Bước 2: Kiểm tra sinh viên đã đăng ký khuôn mặt trên Qdrant chưa ---
@@ -143,6 +152,32 @@ async def check_in(
         reason=reason,
         message=str(message),
     )
+
+
+class OverrideRequest(BaseModel):
+    is_late_override: bool
+    override_reason: str
+
+
+@router.put("/{attendance_id}/override")
+def override_late_status(
+    attendance_id: int,
+    payload: OverrideRequest,
+    db: Session = Depends(get_db),
+    admin: str = Depends(get_current_admin)
+):
+    """
+    Giảng viên sửa đổi trạng thái đi muộn của bản ghi điểm danh
+    """
+    attendance = db.query(Attendance).filter(Attendance.id == attendance_id).first()
+    if not attendance:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh.")
+    
+    attendance.is_late_override = payload.is_late_override
+    attendance.override_reason = payload.override_reason
+    db.commit()
+    
+    return {"message": "Đã sửa trạng thái điểm danh thành công."}
 
 
 # Các endpoint cũ (giữ lại dưới dạng comment để tham khảo)

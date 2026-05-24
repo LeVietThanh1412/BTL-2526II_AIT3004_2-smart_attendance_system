@@ -5,13 +5,19 @@
 
 import axios from 'axios'
 
-// Tạo instance axios riêng để cấu hình baseURL & interceptors tập trung
 const apiClient = axios.create({
   baseURL: '/api/v1',
-
   timeout: 120000,
-
 })
+
+// Tự động gắn Token vào tất cả request
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('adminToken')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+}, (error) => Promise.reject(error))
 
 
 // Interceptor: log lỗi tập trung
@@ -85,6 +91,35 @@ export const registerEmployeeVideo = async ({ student_id, name, videoFile }) => 
 
   const { data } = await apiClient.post('/members/register-video', formData, {
     timeout: 180000,
+  })
+  return data
+}
+
+// ============= ENDPOINTS ADMIN & AUTH =============
+export const loginAdmin = async (username, password) => {
+  const { data } = await apiClient.post('/auth/login', { username, password })
+  return data
+}
+
+export const fetchMembers = async () => {
+  const { data } = await apiClient.get('/members')
+  return data?.items ?? []
+}
+
+export const approveMember = async (studentId) => {
+  const { data } = await apiClient.post(`/members/${studentId}/approve`)
+  return data
+}
+
+export const deleteMember = async (studentId) => {
+  const { data } = await apiClient.delete(`/members/${studentId}`)
+  return data
+}
+
+export const overrideLateStatus = async (attendanceId, is_late_override, override_reason) => {
+  const { data } = await apiClient.put(`/attendance/${attendanceId}/override`, {
+    is_late_override,
+    override_reason
   })
   return data
 }

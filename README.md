@@ -10,6 +10,9 @@ Hệ thống điểm danh tự động bằng nhận diện khuôn mặt (Face R
 - **Xử lý bất đồng bộ**: Dùng **Celery + Redis** đẩy các tác vụ AI nặng (DeepFace) xuống Background Worker, giúp API Backend luôn phản hồi ngay lập tức.
 - **Kiến trúc Cloud-Native**: Lưu trữ ảnh gốc qua Object Storage (**MinIO**).
 - **Thiết kế Microservices**: 7 container độc lập chạy mượt mà thông qua `docker-compose`.
+- **Tính năng nâng cao mới**:
+  - **Xuất báo cáo Excel (CSV)**: Thêm nút tải nhanh báo cáo điểm danh dạng file CSV mã hoá UTF-8 BOM giúp mở ngay trên Microsoft Excel không bị lỗi font chữ.
+  - **Realtime Dashboard**: Trang quản trị nhật ký điểm danh tự động cập nhật log mới mỗi 5 giây (Polling) giúp Admin giám sát trực quan không cần bấm tải lại trang.
 
 ---
 

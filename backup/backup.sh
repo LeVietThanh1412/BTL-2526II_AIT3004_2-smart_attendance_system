@@ -52,11 +52,20 @@ while true; do
      cat /tmp/snap_res.json
   fi
 
-  # 3. Đồng bộ/Backup tài liệu ảnh bằng mc mirror (Ví dụ sang thư mục nội bộ container nếu có mount ra ngoài)
-  # Tuy nhiên vì lưu nội bộ Object Storage, các ảnh và snapshot đã an toàn trong Minio Volume.
-  # Bạn có thể uncomment và cấu hình Remote S3 ở đây dể sao lưu đám mây:
-  # mc alias set remotes3 https://s3.amazonaws.com ACCESS_KEY SECRET_KEY
-  # mc mirror myminio/${MINIO_BUCKET} remotes3/my-remote-bucket
+  # 3. Đồng bộ dữ liệu và tài liệu ảnh sang Remote S3 (nếu có cấu hình)
+  if [ -n "$REMOTE_S3_URL" ] && [ -n "$REMOTE_S3_ACCESS_KEY" ] && [ -n "$REMOTE_S3_SECRET_KEY" ] && [ -n "$REMOTE_S3_BUCKET" ]; then
+      echo "=> Đang đồng bộ backup sang Remote S3..."
+      mc alias set remotes3 "$REMOTE_S3_URL" "$REMOTE_S3_ACCESS_KEY" "$REMOTE_S3_SECRET_KEY" 2>/dev/null
+      
+      # Mirror thư mục backup (MySQL & Qdrant)
+      mc mirror --overwrite myminio/${BACKUP_BUCKET} remotes3/${REMOTE_S3_BUCKET}/backups
+      
+      # Mirror bucket tài liệu/ảnh
+      if [ -n "$MINIO_BUCKET" ]; then
+          mc mirror --overwrite myminio/${MINIO_BUCKET} remotes3/${REMOTE_S3_BUCKET}/${MINIO_BUCKET}_docs
+      fi
+      echo "=> Đồng bộ Remote S3 thành công!"
+  fi
 
   echo "[$(date)] Vòng lặp backup hoàn tất. Chờ ${BACKUP_INTERVAL} giây..."
   sleep ${BACKUP_INTERVAL}

@@ -150,3 +150,28 @@ Frontend: http://localhost:8080
 API Swagger: http://localhost:8000/docs
 
 MinIO Storage: http://localhost:9001
+
+## Cơ chế Backup & Đồng bộ Remote S3
+
+Hệ thống tích hợp sẵn service `backup` chạy ngầm, tự động sao lưu dữ liệu và đồng bộ lên nền tảng Remote S3 (như AWS S3, Cloudflare R2, v.v.) để đảm bảo an toàn tuyệt đối.
+
+### 1. Cấu hình Remote S3
+Mở file `.env` và cập nhật các thông số sau để kích hoạt đồng bộ đám mây:
+```env
+REMOTE_S3_URL=https://s3.amazonaws.com
+REMOTE_S3_ACCESS_KEY=your_aws_access_key
+REMOTE_S3_SECRET_KEY=your_aws_secret_key
+REMOTE_S3_BUCKET=your_backup_bucket
+```
+
+### 2. Các dữ liệu được Backup
+* **MySQL**: Tự động export ra file `.sql` định kỳ (mặc định 24h).
+* **Qdrant**: Tự động tạo và tải về bản snapshot của vector database.
+* **Tài liệu & Ảnh gốc**: Đồng bộ toàn bộ kho ảnh nhận diện từ MinIO local lên bucket của Remote S3.
+
+### 3. Cách theo dõi tiến trình
+Bạn có thể xem log realtime của quá trình backup bằng lệnh:
+```bash
+docker compose logs -f backup
+```
+Dữ liệu tại local có thể xem trực tiếp qua giao diện MinIO Console ở cổng `9001` (vào bucket `backups`).

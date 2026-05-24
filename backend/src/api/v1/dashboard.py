@@ -4,8 +4,11 @@ API endpoints dashboard - thong ke va hoat dong gan day.
 """
 from datetime import date, datetime
 import math
+import io
+import csv
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
@@ -49,6 +52,8 @@ class AttendanceLogItem(BaseModel):
     statusColor: str
     camera_id: str
     confidence_score: float
+    is_late_override: bool | None = None
+    override_reason: str | None = None
 
 
 class AttendanceLogsResponse(BaseModel):
@@ -109,7 +114,10 @@ def _is_late(dt: datetime) -> bool:
 
 def _build_status(attendance: Attendance) -> tuple[str, str]:
     if attendance.status == AttendanceStatus.success:
-        late = _is_late(attendance.check_in_time)
+        if attendance.is_late_override is not None:
+            late = attendance.is_late_override
+        else:
+            late = _is_late(attendance.check_in_time)
         return ("Đi muộn" if late else "Đúng giờ", "red" if late else "green")
 
     if attendance.status == AttendanceStatus.failed:
@@ -146,11 +154,17 @@ def get_statistics(db: Session = Depends(get_db)):
     missing_count = max(0, total_members - checked_in_count)
 
     on_time_filter = or_(
-        func.hour(Attendance.check_in_time) < _LATE_HOUR,
+        Attendance.is_late_override == False,
         and_(
-            func.hour(Attendance.check_in_time) == _LATE_HOUR,
-            func.minute(Attendance.check_in_time) <= _LATE_MINUTE,
-        ),
+            Attendance.is_late_override.is_(None),
+            or_(
+                func.hour(Attendance.check_in_time) < _LATE_HOUR,
+                and_(
+                    func.hour(Attendance.check_in_time) == _LATE_HOUR,
+                    func.minute(Attendance.check_in_time) <= _LATE_MINUTE,
+                ),
+            )
+        )
     )
 
     # On-time: checked in before or at TIME_LATE
@@ -253,6 +267,8 @@ def get_attendance_logs(
                 statusColor=color,
                 camera_id=attendance.camera_id,
                 confidence_score=float(attendance.confidence_score or 0.0),
+                is_late_override=attendance.is_late_override,
+                override_reason=attendance.override_reason,
             )
         )
 
@@ -284,11 +300,17 @@ def get_notifications(db: Session = Depends(get_db)):
     )
 
     late_filter = or_(
-        func.hour(Attendance.check_in_time) > _LATE_HOUR,
+        Attendance.is_late_override == True,
         and_(
-            func.hour(Attendance.check_in_time) == _LATE_HOUR,
-            func.minute(Attendance.check_in_time) > _LATE_MINUTE,
-        ),
+            Attendance.is_late_override.is_(None),
+            or_(
+                func.hour(Attendance.check_in_time) > _LATE_HOUR,
+                and_(
+                    func.hour(Attendance.check_in_time) == _LATE_HOUR,
+                    func.minute(Attendance.check_in_time) > _LATE_MINUTE,
+                ),
+            )
+        )
     )
 
     # Also count users who checked in late
@@ -304,3 +326,51 @@ def get_notifications(db: Session = Depends(get_db)):
     )
 
     return NotificationResponse(count=count + late_count)
+
+
+@router.get("/export-attendance")
+def export_attendance_logs(db: Session = Depends(get_db)):
+    """
+    Export all attendance logs as CSV.
+    Xuat danh sach diem danh ra file CSV.
+    """
+    rows = (
+        db.query(Attendance, User)
+        .outerjoin(User, Attendance.user_id == User.id)
+        .order_by(Attendance.check_in_time.desc())
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Ma SV", "Ho Ten", "Thoi Gian", "Ngay", "Trang Thai", "Camera", "Do Chinh Xac"])
+
+    def iter_csv():
+        yield output.getvalue().encode('utf-8-sig') # BOM for Excel
+        output.seek(0)
+        output.truncate(0)
+
+        for attendance, user in rows:
+            dt: datetime = attendance.check_in_time
+            display_name = user.full_name if user else "Khong ro"
+            display_student_id = user.student_id if user else ""
+            status_label, _ = _build_status(attendance)
+
+            writer.writerow([
+                attendance.id,
+                display_student_id,
+                display_name,
+                _fmt_time(dt),
+                _fmt_date(dt),
+                status_label + (f" ({attendance.override_reason})" if attendance.override_reason else ""),
+                attendance.camera_id,
+                f"{float(attendance.confidence_score or 0.0):.4f}"
+            ])
+            yield output.getvalue().encode('utf-8-sig')
+            output.seek(0)
+            output.truncate(0)
+
+    headers = {
+        "Content-Disposition": "attachment; filename=attendance_logs.csv"
+    }
+    return StreamingResponse(iter_csv(), media_type="text/csv", headers=headers)

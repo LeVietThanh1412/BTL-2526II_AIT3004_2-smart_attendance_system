@@ -1,12 +1,11 @@
 \babel@toc {vietnamese}{}\relax 
 \addvspace {10\p@ }
 \contentsline {table}{\numberline {1.1}{\ignorespaces So sánh các rào cản của phương pháp điểm danh truyền thống}}{5}{table.caption.5}%
-\contentsline {table}{\numberline {1.2}{\ignorespaces Phân quyền đối tượng sử dụng hệ thống}}{6}{table.caption.6}%
-\addvspace {10\p@ }
-\contentsline {table}{\numberline {2.1}{\ignorespaces Phân tích lợi thế tuyệt đối của Qdrant trong bài toán Computer Vision}}{8}{table.caption.7}%
+\contentsline {table}{\numberline {1.2}{\ignorespaces Phân quyền và luồng nghiệp vụ sử dụng hệ thống}}{6}{table.caption.6}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {5.1}{\ignorespaces Bảng phân rã độ trễ (Latency) của một luồng điểm danh}}{18}{table.caption.14}%
-\contentsline {table}{\numberline {5.2}{\ignorespaces Đánh giá độ chính xác theo điều kiện môi trường}}{19}{table.caption.15}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {5.1}{\ignorespaces Bảng phân rã độ trễ (Latency) cho luồng điểm danh}}{19}{table.caption.15}%
+\contentsline {table}{\numberline {5.2}{\ignorespaces Đánh giá độ chính xác theo điều kiện môi trường (Tập test nội bộ 200 ảnh)}}{19}{table.caption.16}%
 \addvspace {10\p@ }

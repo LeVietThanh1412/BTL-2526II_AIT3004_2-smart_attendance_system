@@ -17,7 +17,7 @@ class FaceEngine:
         self.collection_name = os.getenv("QDRANT_COLLECTION", "face_embeddings")
         self.model_name = os.getenv("DEEPFACE_MODEL_NAME", "ArcFace")
         
-        # ArcFace và Facenet512 = 512, các model khác thường = 128
+
         self.vector_size = 512 if self.model_name in ["ArcFace", "Facenet512"] else 128
         
         self.detector_backend = os.getenv("FACE_DETECTOR_BACKEND", "mtcnn")
@@ -60,8 +60,7 @@ class FaceEngine:
             path = tmp.name
 
         try:
-            # enforce_detection=False để DeepFace không quăng lỗi crash,
-            # chúng ta sẽ tự kiểm tra bằng face_confidence
+            # enforce_detection=False để DeepFace không quăng lỗi crash
             reps = DeepFace.represent(img_path=path, model_name=self.model_name, 
                                      detector_backend=self.detector_backend, align=True,
                                      enforce_detection=False)
@@ -92,8 +91,6 @@ class FaceEngine:
             return {"student_id": student_id, "score": 0.0, "matched": False, "reason": "Không tìm thấy dữ liệu khuôn mặt của sinh viên này trong hệ thống."}
 
         score = float(results[0].score or 0.0)
-        
-        
         similarity_threshold = self.match_threshold
         matched = score >= similarity_threshold
         

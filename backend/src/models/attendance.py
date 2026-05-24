@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship, synonym
 from sqlalchemy.sql import func
 from src.database.Base import Base
@@ -19,6 +19,8 @@ class Attendance(Base):
     confidence_score = Column(Float, nullable=False)
     camera_id = Column(String(50), nullable=False)
     status = Column(Enum(AttendanceStatus, name="attendance_status"), nullable=False)
+    is_late_override = Column(Boolean, nullable=True)
+    override_reason = Column(String(255), nullable=True)
 
     similarity_score = synonym("confidence_score")
 

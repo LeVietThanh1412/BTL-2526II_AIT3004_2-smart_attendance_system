@@ -27,6 +27,11 @@
                         </router-link>
                     </li>
                     <li>
+                        <router-link to="/admin/members" active-class="active">
+                            <span>👥</span> Quản lý Sinh viên
+                        </router-link>
+                    </li>
+                    <li>
                         <router-link to="/checkin" active-class="active">
                             <span>📷</span> Camera điểm danh
                         </router-link>
@@ -36,7 +41,7 @@
                 <h3>Hệ thống</h3>
                 <ul>
                     <li><a href="#"><span>⚙️</span> Cài đặt</a></li>
-                    <li><a href="#"><span>❓</span> Trợ giúp</a></li>
+                    <li><a href="#" @click.prevent="handleLogout"><span>🚪</span> Đăng xuất</a></li>
                 </ul>
             </nav>
         </div>
@@ -44,7 +49,14 @@
 </template>
 
 <script setup>
-// Sidebar dùng chung cho mọi trang Admin
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+const handleLogout = () => {
+    localStorage.removeItem('adminToken')
+    router.push('/login')
+}
 </script>
 
 <style scoped>

@@ -1,0 +1,38 @@
+@startuml
+skinparam linetype ortho
+skinparam conditionStyle inside
+
+start
+:Sinh viên nhập MSSV & quét mặt;
+:Frontend gửi Request (/api/v1/attendance/check-in);
+
+:Backend truy vấn MySQL lấy 'Embedding gốc' của MSSV;
+
+if (Có tìm thấy dữ liệu MSSV?) then (Có)
+    :Backend upload ảnh điểm danh mới lên MinIO;
+    :Backend gửi Task [image_url, embedding_gốc] vào Redis;
+    
+    fork
+        :Backend chờ kết quả;
+    fork again
+        :AI Worker nhận Task;
+        :Worker tải ảnh điểm danh mới từ MinIO;
+        :Worker trích xuất 'Vector mới';
+        
+        :Worker tính toán khoảng cách Cosine(Vector mới, Embedding gốc);
+        
+        if (Khoảng cách >= Ngưỡng?) then (Khớp)
+            :Worker trả kết quả: THÀNH CÔNG;
+        else (Không khớp)
+            :Worker trả kết quả: THẤT BẠI;
+        endif
+    end merge
+    
+    :Backend ghi log vào MySQL;
+    :Trả về kết quả cho Frontend;
+else (Không)
+    :Trả về lỗi: MSSV không tồn tại;
+endif
+
+stop
+@enduml

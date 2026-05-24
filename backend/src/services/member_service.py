@@ -1,4 +1,5 @@
 import base64
+import logging
 from typing import List
 
 import cv2
@@ -16,10 +17,12 @@ from src.services.redis_query import redis_embedding_cache
 from src.services.storages import minio_service
 from src.utils.video_processor import extract_frames_from_video
 
+logger = logging.getLogger(__name__)
+
 
 class MemberService:
     """
-    Business logic service for member registration operations.
+    Dịch vụ xử lý logic nghiệp vụ cho việc đăng ký thành viên.
 
     Xu ly dang ky thanh vien bao gom:
     - Upload anh/video len MinIO
@@ -36,17 +39,17 @@ class MemberService:
         prefix: str = "register",
     ) -> tuple[List[str], List[np.ndarray]]:
         """
-        Process batch of base64 images: upload to MinIO and extract embeddings.
+        Xử lý hàng loạt ảnh base64: tải lên MinIO và trích xuất embedding.
 
         Xu ly loat anh base64: tai len MinIO va trich xuat embedding.
 
         Args:
-            images_base64: List of base64 encoded images
-            student_id: Student ID for filename
-            prefix: Prefix for uploaded filenames
+            images_base64: Danh sách các ảnh đã mã hóa base64
+            student_id: Mã sinh viên dùng để đặt tên file
+            prefix: Tiền tố cho tên file khi tải lên
 
         Returns:
-            Tuple of (stored_image_paths, embeddings)
+            Tuple gồm (danh sách đường dẫn ảnh đã lưu, danh sách các embedding)
         """
         embeddings: List[np.ndarray] = []
         stored_image_paths: List[str] = []
@@ -62,18 +65,35 @@ class MemberService:
                 stored_image_paths.append(image_path)
 
                 try:
-                    result = extract_face_embedding_task.delay(image_path).get(timeout=60)
+                    result = extract_face_embedding_task.delay(image_path).get(timeout=120)
                     if (
                         isinstance(result, dict)
                         and result.get("status") == "success"
                         and result.get("vector")
                     ):
                         embeddings.append(np.array(result["vector"], dtype=np.float32))
+                    elif isinstance(result, dict) and result.get("status") == "failed":
+                        logger.warning(
+                            "Trích xuất embedding thất bại cho ảnh thứ %d của sinh viên %s: %s",
+                            idx, student_id, result.get("message", "Lỗi không xác định"),
+                        )
                 except CeleryTimeoutError:
+                    logger.warning(
+                        "Quá thời gian xử lý Celery khi trích xuất embedding cho ảnh thứ %d của sinh viên %s",
+                        idx, student_id,
+                    )
                     continue
-                except Exception:
+                except Exception as exc:
+                    logger.error(
+                        "Lỗi không mong muốn khi trích xuất embedding cho ảnh thứ %d của sinh viên %s: %s",
+                        idx, student_id, exc, exc_info=True,
+                    )
                     continue
-            except Exception:
+            except Exception as exc:
+                logger.error(
+                    "Lỗi khi xử lý ảnh thứ %d của sinh viên %s: %s",
+                    idx, student_id, exc, exc_info=True,
+                )
                 continue
 
         return stored_image_paths, embeddings
@@ -84,16 +104,16 @@ class MemberService:
         student_id: str,
     ) -> tuple[List[str], List[np.ndarray]]:
         """
-        Process video: extract frames, upload to MinIO, extract embeddings.
+        Xử lý video: trích xuất các khung hình, tải lên MinIO, trích xuất embedding.
 
         Xu ly video: trich xuat khung hinh, tai len MinIO, trich xuat embedding.
 
         Args:
-            video_bytes: Raw video file bytes
-            student_id: Student ID for filename
+            video_bytes: Dữ liệu file video thô
+            student_id: Mã sinh viên dùng để đặt tên file
 
         Returns:
-            Tuple of (stored_image_paths, embeddings)
+            Tuple gồm (danh sách đường dẫn ảnh đã lưu, danh sách các embedding)
         """
         try:
             frames = extract_frames_from_video(video_bytes, frame_interval=1)
@@ -118,18 +138,35 @@ class MemberService:
                 stored_image_paths.append(image_path)
 
                 try:
-                    result = extract_face_embedding_task.delay(image_path).get(timeout=60)
+                    result = extract_face_embedding_task.delay(image_path).get(timeout=120)
                     if (
                         isinstance(result, dict)
                         and result.get("status") == "success"
                         and result.get("vector")
                     ):
                         embeddings.append(np.array(result["vector"], dtype=np.float32))
+                    elif isinstance(result, dict) and result.get("status") == "failed":
+                        logger.warning(
+                            "Trích xuất embedding thất bại cho khung hình %d của sinh viên %s: %s",
+                            idx, student_id, result.get("message", "Lỗi không xác định"),
+                        )
                 except CeleryTimeoutError:
+                    logger.warning(
+                        "Quá thời gian xử lý Celery khi trích xuất embedding cho khung hình %d của sinh viên %s",
+                        idx, student_id,
+                    )
                     continue
-                except Exception:
+                except Exception as exc:
+                    logger.error(
+                        "Lỗi không mong muốn khi trích xuất embedding cho khung hình %d của sinh viên %s: %s",
+                        idx, student_id, exc, exc_info=True,
+                    )
                     continue
-            except Exception:
+            except Exception as exc:
+                logger.error(
+                    "Lỗi khi xử lý khung hình %d của sinh viên %s: %s",
+                    idx, student_id, exc, exc_info=True,
+                )
                 continue
 
         return stored_image_paths, embeddings
@@ -143,19 +180,19 @@ class MemberService:
         stored_image_paths: List[str],
     ) -> User:
         """
-        Save or update user and face embedding in database.
+        Lưu hoặc cập nhật thông tin người dùng và face embedding vào database.
 
         Luu hoac cap nhat nguoi dung va face embedding trong database.
 
         Args:
-            db: Database session
-            student_id: Student ID
-            name: User name
-            master_embedding_list: Master embedding vector
-            stored_image_paths: List of uploaded image paths
+            db: Session của database
+            student_id: Mã sinh viên
+            name: Tên sinh viên
+            master_embedding_list: Vector embedding tham chiếu
+            stored_image_paths: Danh sách các đường dẫn ảnh đã tải lên MinIO
 
         Returns:
-            User object
+            Đối tượng User
         """
         user = db.query(User).filter(User.student_id == student_id).first()
         if user is None:
@@ -204,18 +241,18 @@ class MemberService:
         images_base64: List[str],
     ) -> dict:
         """
-        Register member using base64 encoded images.
+        Đăng ký thành viên bằng ảnh mã hóa base64.
 
         Dang ky thanh vien bang anh ma hoa base64.
 
         Args:
-            db: Database session
-            student_id: Student ID
-            name: User name
-            images_base64: List of base64 encoded images
+            db: Session của database
+            student_id: Mã sinh viên
+            name: Tên sinh viên
+            images_base64: Danh sách ảnh đã mã hóa base64
 
         Returns:
-            Registration result dictionary
+            Dictionary chứa kết quả đăng ký
         """
         if len(images_base64) < settings.min_registration_images:
             raise HTTPException(
@@ -267,18 +304,18 @@ class MemberService:
         video_bytes: bytes,
     ) -> dict:
         """
-        Register member using video recording.
+        Đăng ký thành viên bằng video quay mặt.
 
         Dang ky thanh vien bang video quay mat.
 
         Args:
-            db: Database session
-            student_id: Student ID
-            name: User name
-            video_bytes: Raw video file bytes
+            db: Session của database
+            student_id: Mã sinh viên
+            name: Tên sinh viên
+            video_bytes: Dữ liệu file video thô
 
         Returns:
-            Registration result dictionary
+            Dictionary chứa kết quả đăng ký
         """
         stored_image_paths, embeddings = cls._process_video_batch(
             video_bytes=video_bytes,

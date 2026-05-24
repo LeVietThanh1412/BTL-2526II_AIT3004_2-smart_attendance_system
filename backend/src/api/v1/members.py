@@ -1,6 +1,5 @@
 """
-Member registration API endpoints.
-API endpoints cho dang ky thanh vien.
+Các API endpoint dùng cho việc đăng ký thành viên.
 """
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
@@ -20,11 +19,10 @@ router = APIRouter(prefix="/members", tags=["members"])
 @router.post("/register", response_model=MemberRegistrationResponse)
 def register_member(payload: MemberRegistrationRequest, db: Session = Depends(get_db)):
     """
-    Register a member using base64 encoded images.
-    Dang ky thanh vien bang anh ma hoa base64.
+    Đăng ký thành viên bằng ảnh mã hóa base64.
 
-    - Requires at least 3 images (configurable in settings)
-    - Returns embedding dimension and accepted images count
+    - Yêu cầu ít nhất 3 ảnh (có thể cấu hình trong settings)
+    - Trả về số chiều của embedding và số lượng ảnh được chấp nhận
     """
     result = MemberService.register_with_images(
         db=db,
@@ -51,11 +49,10 @@ async def register_member_video(
     db: Session = Depends(get_db),
 ):
     """
-    Register a member using video recording.
-    Dang ky sinh vien bang video quay mat.
+    Đăng ký sinh viên bằng video quay mặt.
 
-    - Video should be 10-20 seconds with clear front-facing angle
-    - Frames extracted at 1-second intervals for multi-angle coverage
+    - Video nên dài 10-20 giây với góc quay rõ mặt
+    - Trích xuất 1 khung hình mỗi giây để lấy nhiều góc độ
     """
     if not video.content_type or not video.content_type.startswith("video/"):
         raise HTTPException(
@@ -81,7 +78,7 @@ async def register_member_video(
     )
 
 
-# Legacy backend endpoints (commented to preserve differences)
+# Các endpoint backend cũ (giữ lại dưới dạng comment để tham khảo)
 # @router.post("/register", response_model=MemberRegistrationResponse, status_code=status.HTTP_202_ACCEPTED)
 # def register_member(payload: MemberRegistrationRequest, db: Session = Depends(get_db)):
 #     """

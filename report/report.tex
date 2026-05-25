@@ -406,13 +406,17 @@ Dựa trên kết quả nghiệm thu nội bộ của nhóm với tập dữ li�
 \textbf{Điều kiện ánh sáng} & \textbf{Precision (Đúng)} & \textbf{False Negative} & \textbf{False Positive} \\ \hline
 \textbf{Tiêu chuẩn (Phòng học)} & \textbf{99.1\%} & 0.9\% & 0.0\% \\ \hline
 \textbf{Ngược sáng / Tối} & 92.5\% & 7.5\% & 0.0\% \\ \hline
-\end{tabularx}
-\caption{Đánh giá độ chính xác theo điều kiện môi trường (Tập test nội bộ 200 ảnh)}
+
+\end{tabular}
+\caption{Đánh giá độ chính xác theo điều kiện môi trường}
+
 \end{table}
 
 \textbf{Phân tích}: 
 \begin{itemize}
+
     \item Hệ thống có tỷ lệ \textbf{False Positive (Nhận diện sai thành người khác) = 0\%} ở mọi điều kiện. Đây là sự điều chỉnh cố ý của nhóm bằng cách giữ Threshold ở mức cao (0.70) và kết hợp cơ chế lọc cứng \texttt{student\_id} (Xác minh 1-1). Trong bảo mật hệ thống điểm danh, việc "không nhận ra" (False Negative - sinh viên có thể thử lại góc mặt khác) là hoàn toàn chấp nhận được, nhưng việc "nhận diện sai" (điểm danh hộ người khác) là tối kỵ.
+
 \end{itemize}
 
 \chapter{Kết luận \& Hướng phát triển}

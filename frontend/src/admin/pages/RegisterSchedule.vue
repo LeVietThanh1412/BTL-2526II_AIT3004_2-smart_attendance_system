@@ -112,12 +112,14 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import AdminSidebar from '../AdminSidebar.vue'
 import TopHeader from '../TopHeader.vue'
 import apiClient, { approveStudentSchedule, rejectStudentSchedule, fetchMembers, fetchScheduleHistory } from '../../shared/api'
 
 const isAdmin = ref(!!localStorage.getItem('adminToken'))
+const route = useRoute()
 
 const studentId = ref('')
 const studentInfo = ref(null)
@@ -126,6 +128,13 @@ const loading = ref(false)
 const saving = ref(false)
 const errorMessage = ref('')
 const showScheduleForm = ref(false)
+
+onMounted(() => {
+  if (route.query.student_id) {
+    studentId.value = route.query.student_id
+    loadSchedule()
+  }
+})
 
 const days = [
   { id: 0, name: 'Thứ Hai' },

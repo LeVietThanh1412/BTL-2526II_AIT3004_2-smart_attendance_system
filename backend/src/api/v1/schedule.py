@@ -25,9 +25,9 @@ def get_schedule_history(student_id: str, db: Session = Depends(get_db)):
     history_groups = {}
     for s in all_schedules:
         created_key = s.created_at.replace(microsecond=0) if s.created_at else None
-        key = (created_key, s.is_approved)
+        key = (created_key, s.is_approved, s.is_active)
         if key not in history_groups:
-            history_groups[key] = {"schedules": [], "approved_at": s.approved_at}
+            history_groups[key] = {"schedules": [], "approved_at": s.approved_at, "is_active": s.is_active}
         history_groups[key]["schedules"].append({
             "day_of_week": s.day_of_week,
             "shifts": s.shifts
@@ -36,11 +36,12 @@ def get_schedule_history(student_id: str, db: Session = Depends(get_db)):
             history_groups[key]["approved_at"] = s.approved_at
     
     result = []
-    for (created_at, is_approved), group in history_groups.items():
+    for (created_at, is_approved, is_active), group in history_groups.items():
         result.append({
             "created_at": created_at.isoformat() if created_at else None,
             "approved_at": group["approved_at"].isoformat() if group["approved_at"] else None,
             "is_approved": is_approved,
+            "is_active": is_active,
             "schedules": sorted(group["schedules"], key=lambda x: x["day_of_week"])
         })
     
@@ -132,3 +133,31 @@ def approve_student_schedule(
     db.commit()
     
     return {"message": "Đã duyệt lịch học thành công."}
+
+@router.post("/{student_id}/reject")
+def reject_student_schedule(
+    student_id: str, 
+    db: Session = Depends(get_db),
+    admin: str = Depends(get_current_admin)
+):
+    """Giảng viên từ chối lịch học của sinh viên."""
+    user = db.query(User).filter(User.student_id == student_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Không tìm thấy sinh viên.")
+    
+    pending_schedules = db.query(StudentSchedule).filter(
+        StudentSchedule.user_id == user.id, 
+        StudentSchedule.is_approved == False,
+        StudentSchedule.is_active == True
+    ).all()
+    
+    if not pending_schedules:
+        raise HTTPException(status_code=400, detail="Không có lịch học chờ duyệt.")
+    
+    # Huỷ bỏ các lịch đang chờ duyệt (set is_active = False)
+    for schedule in pending_schedules:
+        schedule.is_active = False
+    
+    db.commit()
+    
+    return {"message": "Đã từ chối (huỷ bỏ) yêu cầu đổi lịch học."}

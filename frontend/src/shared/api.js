@@ -116,6 +116,11 @@ export const approveStudentSchedule = async (studentId) => {
   return data
 }
 
+export const rejectStudentSchedule = async (studentId) => {
+  const { data } = await apiClient.post(`/schedule/${studentId}/reject`)
+  return data
+}
+
 export const fetchScheduleHistory = async (studentId) => {
   const { data } = await apiClient.get(`/schedule/${studentId}/history`)
   return data

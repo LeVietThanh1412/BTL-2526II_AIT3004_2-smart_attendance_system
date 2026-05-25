@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1779641992.44826 "/mnt/Data1/LeVietThanh1412-Product/BTL-2526II_AIT3004_2-smart_attendance_system/report/report.tex" "out/report/report.pdf" "report" 1779641993.49661 2
+["pdflatex"] 1779720929.55085 "/mnt/Data1/LeVietThanh1412-Product/BTL-2526II_AIT3004_2-smart_attendance_system/report/report.tex" "out/report/report.pdf" "report" 1779720930.30932 0
   "../demo/dang_ki_diem_danh.png" 1779640613.04766 101855 9bc191162c9324c81d0576e8fd212e9a ""
   "../demo/dang_nhap_admin.png" 1779640623.22549 30714 e940e54b0df54e617dfd8e728e8b37e7 ""
   "../demo/dashbroad.png" 1779640602.45585 76866 11b131390684c6c41e5174405aed607d ""
@@ -8,7 +8,7 @@
   "../uml/csdl.png" 1779460209.95857 13404 7aeb9998e84826cae79eb4fef0fa4893 ""
   "../uml/deployment.png" 1779460209.95957 21809 399edf7586795d0045989ed37855fb48 ""
   "../uml/sequency.png" 1779460209.96157 166724 ee9139ca6144ec2056cac8e1b73db230 ""
-  "/mnt/Data1/LeVietThanh1412-Product/BTL-2526II_AIT3004_2-smart_attendance_system/report/report.tex" 1779641964.6039 24203 9bdc52b02e2f251c44e5255d0dbeb5b1 ""
+  "/mnt/Data1/LeVietThanh1412-Product/BTL-2526II_AIT3004_2-smart_attendance_system/report/report.tex" 1779720928.60889 22727 8140ad70e7e5044d75c13dde7c6b3918 ""
   "/usr/share/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc" 1775415801 2405 5dcf2c1b967ee25cc46c58cd52244aed ""
   "/usr/share/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc" 1775415801 2840 216e6e45ad352e2456e1149f28885bee ""
   "/usr/share/texmf-dist/fonts/enc/dvips/lm/lm-rm.enc" 1775415801 2327 9d6df24f9c4f7368395224341a95523a ""
@@ -140,15 +140,12 @@
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1775415801 43569 fd570f2fa160877d211e859f687312ba ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1776780282 358575 a84af5c9c27c33f962d16a976cc2d0db ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1776780260 2426816 8f35dbcba6df50fd1eefffcc45b1bbcd ""
-  "out/report/report.aux" 1779641993.1534 7915 597251730276e244bc28791bd7eb1659 "pdflatex"
-  "out/report/report.lof" 1779641993.1544 1357 3019fdb80a6288cc9ca2e940182936b4 "pdflatex"
-  "out/report/report.lot" 1779641993.1544 769 712dcff030ee34d6a14955fcdf3fd7a8 "pdflatex"
-  "out/report/report.out" 1779641993.1544 6079 70b85b9f3748d661191f9081208b89b3 "pdflatex"
-  "out/report/report.toc" 1779641993.1544 2415 cca9655cb57204d6508790e4687d3c8a "pdflatex"
-  "report.lof" 0 -1 0 ""
-  "report.lot" 0 -1 0 ""
-  "report.tex" 1779641964.6039 24203 9bdc52b02e2f251c44e5255d0dbeb5b1 ""
-  "report.toc" 0 -1 0 ""
+  "out/report/report.aux" 1779720930.23494 9422 9a470398fc858a66ae897ccae14c78e5 "pdflatex"
+  "out/report/report.lof" 1779720930.23694 1354 2662e062db81f3ba7097f12ea33cdf01 "pdflatex"
+  "out/report/report.lot" 1779720930.23694 755 fcbea1b78608e775a1096aee9760c07b "pdflatex"
+  "out/report/report.out" 1779720930.23594 9147 6f131a52800dd454c77e2eeccce02b01 "pdflatex"
+  "out/report/report.toc" 1779720930.23694 3536 ee711a6aef03f5908db45d2d1e2f1288 "pdflatex"
+  "report.tex" 1779720928.60889 22727 8140ad70e7e5044d75c13dde7c6b3918 ""
   (generated)
   "out/report/report.aux"
   "out/report/report.lof"

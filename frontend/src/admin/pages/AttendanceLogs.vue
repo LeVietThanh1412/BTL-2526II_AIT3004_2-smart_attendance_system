@@ -36,7 +36,11 @@
                   <td>{{ rowIndex(idx) }}</td>
                   <td>{{ item.student_id || 'Không rõ' }}</td>
                   <td>{{ item.name }}</td>
-                  <td>{{ item.time }} - {{ item.date }}<br><small v-if="item.check_out_time">Out: {{ item.check_out_time }}</small></td>
+                  <td>
+                    <div style="font-weight: 500; color: #334155;">In: {{ item.time }}</div>
+                    <div style="color: #64748b; margin-top: 2px;">Out: {{ item.check_out_time || '--:--' }}</div>
+                    <div style="font-size: 11px; margin-top: 4px; color: #94a3b8;">{{ item.date }}</div>
+                  </td>
                   <td>
                     <div style="display: flex; flex-direction: column; gap: 4px;">
                       <div style="display: flex; align-items: center; gap: 6px;">
@@ -72,12 +76,26 @@
           <div class="form-group">
             <label>Trạng thái</label>
             <select v-model="editData.status">
-              <option value="success">Thành công / Có mặt</option>
-              <option value="failed">Thất bại / Về sớm</option>
+              <option value="success">Thành công (Đúng/Muộn theo hệ thống)</option>
+              <option value="failed">Nhận diện lỗi / Thất bại</option>
               <option value="absent_unexcused">Vắng không phép</option>
               <option value="absent_excused">Vắng có phép</option>
-              <option value="present_incomplete">Có đến nhưng quên Check-out</option>
+              <option value="present_incomplete">Quên check-out</option>
             </select>
+          </div>
+          
+          <div class="form-group" v-if="editData.status === 'success'">
+            <label>Sửa Đi đúng giờ / Vào muộn</label>
+            <div style="display: flex; gap: 15px; margin-top: 5px;">
+              <label style="display: flex; align-items: center; gap: 5px; font-weight: normal;">
+                <input type="radio" :value="false" v-model="editData.is_late" />
+                Vào đúng giờ
+              </label>
+              <label style="display: flex; align-items: center; gap: 5px; font-weight: normal;">
+                <input type="radio" :value="true" v-model="editData.is_late" />
+                Vào muộn
+              </label>
+            </div>
           </div>
           
           <div class="form-group">

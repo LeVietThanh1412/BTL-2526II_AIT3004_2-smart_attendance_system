@@ -28,11 +28,20 @@ async def lifespan(app: FastAPI):
     try:
         from sqlalchemy import text
         with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE student_schedules ADD COLUMN is_approved BOOLEAN DEFAULT FALSE;"))
-            import logging
-            logging.getLogger(__name__).info("Đã thêm cột is_approved vào student_schedules.")
+            try:
+                conn.execute(text("ALTER TABLE student_schedules ADD COLUMN is_approved BOOLEAN DEFAULT FALSE;"))
+            except Exception: pass
+            try:
+                conn.execute(text("ALTER TABLE student_schedules ADD COLUMN is_active BOOLEAN DEFAULT TRUE;"))
+            except Exception: pass
+            try:
+                conn.execute(text("ALTER TABLE student_schedules ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;"))
+            except Exception: pass
+            try:
+                conn.execute(text("ALTER TABLE student_schedules ADD COLUMN approved_at DATETIME NULL;"))
+            except Exception: pass
     except Exception as e:
-        pass # Bỏ qua nếu cột đã tồn tại
+        pass
 
 
     # Khởi động daily scheduler quét điểm danh

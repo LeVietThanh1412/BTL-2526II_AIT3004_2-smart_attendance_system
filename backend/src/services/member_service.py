@@ -200,6 +200,11 @@ class MemberService:
             db.add(user)
             db.flush()
         else:
+            if user.is_approved:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Sinh viên '{student_id}' đã được đăng ký và duyệt. Không thể đăng ký lại.",
+                )
             user.name = name
 
         qdrant_point_id = user.id

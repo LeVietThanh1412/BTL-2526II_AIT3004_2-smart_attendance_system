@@ -120,10 +120,14 @@ def _build_status(attendance: Attendance) -> tuple[str, str]:
             late = attendance.is_late_override
         else:
             late = _is_late(attendance.check_in_time)
-        return ("Đi muộn" if late else "Có mặt", "red" if late else "green")
+            
+        if late:
+            return ("Hoàn thành (Muộn)" if attendance.check_out_time else "Vào muộn", "yellow")
+        
+        return ("Hoàn thành" if attendance.check_out_time else "Vào đúng giờ", "green")
 
     if attendance.status == AttendanceStatus.failed:
-        return ("Thất bại / Về sớm", "red")
+        return ("Nhận diện lỗi / Thất bại", "red")
         
     if attendance.status == AttendanceStatus.absent_unexcused:
         return ("Vắng không phép", "red")

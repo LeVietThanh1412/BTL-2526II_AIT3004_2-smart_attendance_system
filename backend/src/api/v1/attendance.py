@@ -72,7 +72,8 @@ async def check_in(
     schedule = db.query(StudentSchedule).filter(
         StudentSchedule.user_id == user.id,
         StudentSchedule.day_of_week == day_of_week,
-        StudentSchedule.is_approved == True
+        StudentSchedule.is_approved == True,
+        StudentSchedule.is_active == True
     ).first()
     
     if not schedule:
@@ -153,20 +154,26 @@ async def check_in(
         student_id, score, threshold, matched, reason,
     )
 
-    # --- Xử lý Check-in / Check-out (Multi-Session) ---
-    # Parse lịch học
-    # Parse lịch học - chỉ lấy shift_id hợp lệ có trong SHIFTS
+    # --- Xử lý Check-in / Check-out ---
+    # Parse ca học hợp lệ
     shift_ids = [int(s.strip()) for s in schedule.shifts.split(",") if s.strip().isdigit() and int(s.strip()) in SHIFTS]
     if not shift_ids:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Lịch học bị lỗi định dạng hoặc chứa ca không hợp lệ.")
 
+    first_shift = min(shift_ids)
     last_shift = max(shift_ids)
-    end_time_of_last_shift = SHIFTS[last_shift]["end"]
+    shift_start_time = SHIFTS[first_shift]["start"]   # Giờ bắt đầu ca đầu tiên
+    end_time_of_last_shift = SHIFTS[last_shift]["end"] # Giờ kết thúc ca cuối
+
+    # Thời gian cho phép check-in sớm (30 phút trước ca đầu)
+    checkin_earliest = (datetime.combine(current_date, shift_start_time) - timedelta(minutes=30)).time()
+    # Giờ được tính là đi muộn (sau giờ bắt đầu ca đầu 15 phút)
+    late_threshold = (datetime.combine(current_date, shift_start_time) + timedelta(minutes=15)).time()
 
     # Ràng buộc thời gian hệ thống
     if current_time < time(5, 30):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Hệ thống điểm danh chỉ mở từ 5h30 sáng."
         )
 
@@ -177,15 +184,39 @@ async def check_in(
         Attendance.status == AttendanceStatus.success
     ).order_by(Attendance.check_in_time.desc()).first()
 
-    if not attendance or attendance.check_out_time is not None:
-        # Đây là Check-in MỚI (Mở 1 phiên mới)
+    # Nếu đã có bản ghi và đã check-out, tức là đã hoàn thành điểm danh trong ngày
+    if attendance and attendance.check_out_time is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bạn đã hoàn thành điểm danh ra về (check-out) cho ngày hôm nay."
+        )
+
+    action = None
+    is_late = None
+    check_in_str = None
+    check_out_str = None
+
+    if not attendance:
+        # === CHECK-IN MỚI ===
+        action = "check_in"
+
+        # Không cho check-in trước giờ mở cổng
+        if current_time < checkin_earliest:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Chưa đến giờ học. Ca bắt đầu lúc {shift_start_time.strftime('%H:%M')}, có thể check-in sớm nhất lúc {checkin_earliest.strftime('%H:%M')}."
+            )
+        # Không cho check-in sau khi ca cuối đã kết thúc
         if current_time > end_time_of_last_shift:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, 
-                detail="Ca học cuối cùng của bạn đã kết thúc, không thể điểm danh vào thêm."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ca học cuối cùng của bạn đã kết thúc, không thể check-in."
             )
+
+        # Xác định đi muộn
+        is_late = current_time > late_threshold
+
         if status_enum != AttendanceStatus.success:
-            # Nhận diện thất bại - chỉ ghi log, không mở phiên check-in
             failed_attendance = Attendance(
                 user_id=user.id,
                 attendance_date=current_date,
@@ -197,7 +228,7 @@ async def check_in(
             db.add(failed_attendance)
             try:
                 db.commit()
-            except Exception as exc:
+            except Exception:
                 db.rollback()
             return AttendanceCheckResponse(
                 status=status_value,
@@ -207,7 +238,9 @@ async def check_in(
                 matched=matched,
                 reason=reason,
                 message=f"Check-in thất bại: {reason or 'Nhận diện khuôn mặt không thành công.'}",
+                action=action,
             )
+
         attendance = Attendance(
             user_id=user.id,
             attendance_date=current_date,
@@ -215,13 +248,30 @@ async def check_in(
             confidence_score=score,
             camera_id=camera_id,
             status=status_enum,
+            is_late_override=is_late,
         )
-        message = f"Check-in thành công ({today.strftime('%H:%M:%S')})."
+        late_text = " (Muộn ⚠️)" if is_late else ""
+        message = f"Check-in thành công lúc {today.strftime('%H:%M:%S')}{late_text}."
+        check_in_str = today.strftime("%H:%M:%S")
         db.add(attendance)
+
     else:
-        # Đây là Check-out của phiên hiện tại
+        # === CHECK-OUT ===
+        action = "check_out"
+
+        # Ràng buộc: chỉ checkout trong 30 phút trước giờ tan ca cuối
+        checkout_window_start = (
+            datetime.combine(current_date, end_time_of_last_shift) - timedelta(minutes=30)
+        ).time()
+        if current_time < checkout_window_start:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Chưa đến giờ tan học. Chỉ được check-out trong 30 phút cuối (từ {checkout_window_start.strftime('%H:%M')}, tan lúc {end_time_of_last_shift.strftime('%H:%M')})."
+            )
+
+        is_late = bool(attendance.is_late_override)
+
         if status_enum != AttendanceStatus.success:
-            # Nếu check-out thất bại (nhận diện sai mặt), tạo log lỗi nhưng không cập nhật check-out
             failed_log = Attendance(
                 user_id=user.id,
                 attendance_date=current_date,
@@ -231,13 +281,16 @@ async def check_in(
                 status=status_enum,
             )
             db.add(failed_log)
-            message = f"Check-out thất bại: {reason}"
+            message = f"Check-out thất bại: {reason or 'Nhận diện khuôn mặt không thành công.'}"
         else:
             attendance.check_out_time = today
-            attendance.status = AttendanceStatus.success # Ghi nhận check-out thành công
+            attendance.status = AttendanceStatus.success
             attendance.confidence_score = score
             attendance.camera_id = camera_id
-            message = f"Check-out thành công ({today.strftime('%H:%M:%S')})."
+            check_in_str = attendance.check_in_time.strftime("%H:%M:%S") if attendance.check_in_time else None
+            check_out_str = today.strftime("%H:%M:%S")
+            late_text = " | Đã vào muộn ⚠️" if is_late else ""
+            message = f"Check-out thành công lúc {today.strftime('%H:%M:%S')}{late_text}."
 
     try:
         db.commit()
@@ -256,6 +309,12 @@ async def check_in(
         matched=matched,
         reason=reason,
         message=str(message),
+        action=action,
+        is_late=is_late,
+        check_in_time=check_in_str,
+        check_out_time=check_out_str,
+        shift_start=shift_start_time.strftime("%H:%M"),
+        shift_end=end_time_of_last_shift.strftime("%H:%M"),
     )
 
 

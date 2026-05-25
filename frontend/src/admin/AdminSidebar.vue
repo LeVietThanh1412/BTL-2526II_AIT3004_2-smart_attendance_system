@@ -28,7 +28,7 @@
                     </li>
                     <li>
                         <router-link to="/admin/schedule" active-class="active">
-                            <span>📅</span> Đăng ký lịch học
+                            <span>📅</span> Đăng ký đổi ca học
                         </router-link>
                     </li>
                     <li>

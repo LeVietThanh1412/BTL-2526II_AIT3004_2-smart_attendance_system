@@ -32,8 +32,11 @@ async def mark_absent_task():
         current_date = today.date()
         day_of_week = today.weekday()
 
-        # Tìm tất cả lịch học của ngày hôm nay
-        schedules = db.query(StudentSchedule).filter(StudentSchedule.day_of_week == day_of_week).all()
+        # Tìm tất cả lịch học đã được duyệt của ngày hôm nay
+        schedules = db.query(StudentSchedule).filter(
+            StudentSchedule.day_of_week == day_of_week,
+            StudentSchedule.is_approved == True
+        ).all()
         
         for schedule in schedules:
             user_id = schedule.user_id
@@ -53,8 +56,9 @@ async def mark_absent_task():
                 
                 is_present = False
                 for att in attendances:
-                    # Bỏ qua các bản ghi do hệ thống tự sinh (vắng mặt)
+                    # Bỏ qua các bản ghi do hệ thống tự sinh (vắng mặt) hoặc không có check_in_time
                     if att.camera_id == "system_auto": continue
+                    if not att.check_in_time: continue
                     
                     in_time = att.check_in_time.time()
                     out_time = att.check_out_time.time() if att.check_out_time else time(23, 59, 59)

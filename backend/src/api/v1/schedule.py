@@ -16,8 +16,10 @@ def get_student_schedule(student_id: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.student_id == student_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Không tìm thấy sinh viên.")
-    
-    return user.schedules
+    pending_schedules = db.query(StudentSchedule).filter(StudentSchedule.user_id == user.id, StudentSchedule.is_approved == False).all()
+    if pending_schedules:
+        return pending_schedules
+    return db.query(StudentSchedule).filter(StudentSchedule.user_id == user.id, StudentSchedule.is_approved == True).all()
 
 @router.post("/{student_id}")
 def update_student_schedule(
@@ -30,8 +32,8 @@ def update_student_schedule(
     if not user:
         raise HTTPException(status_code=404, detail="Không tìm thấy sinh viên.")
     
-    # Xóa lịch cũ
-    db.query(StudentSchedule).filter(StudentSchedule.user_id == user.id).delete()
+    # Chỉ xóa các yêu cầu đổi lịch cũ (đang chờ duyệt), giữ nguyên lịch đã duyệt để sv vẫn có thể điểm danh
+    db.query(StudentSchedule).filter(StudentSchedule.user_id == user.id, StudentSchedule.is_approved == False).delete()
     
     # Thêm lịch mới
     new_schedules = []
@@ -39,11 +41,32 @@ def update_student_schedule(
         new_schedule = StudentSchedule(
             user_id=user.id,
             day_of_week=schedule_data.day_of_week,
-            shifts=schedule_data.shifts
+            shifts=schedule_data.shifts,
+            is_approved=False
         )
         new_schedules.append(new_schedule)
     
     db.add_all(new_schedules)
     db.commit()
     
-    return {"message": "Đã cập nhật lịch học thành công."}
+    return {"message": "Đã cập nhật lịch học thành công. Vui lòng chờ Giảng viên duyệt."}
+
+@router.post("/{student_id}/approve")
+def approve_student_schedule(
+    student_id: str, 
+    db: Session = Depends(get_db),
+    admin: str = Depends(get_current_admin)
+):
+    """Giảng viên duyệt lịch học của sinh viên."""
+    user = db.query(User).filter(User.student_id == student_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Không tìm thấy sinh viên.")
+    
+    # Nếu có lịch chờ duyệt thì xóa lịch cũ đã duyệt và cập nhật lịch chờ thành đã duyệt
+    pending_schedules = db.query(StudentSchedule).filter(StudentSchedule.user_id == user.id, StudentSchedule.is_approved == False).count()
+    if pending_schedules > 0:
+        db.query(StudentSchedule).filter(StudentSchedule.user_id == user.id, StudentSchedule.is_approved == True).delete()
+        db.query(StudentSchedule).filter(StudentSchedule.user_id == user.id, StudentSchedule.is_approved == False).update({"is_approved": True})
+    db.commit()
+    
+    return {"message": "Đã duyệt lịch học thành công."}

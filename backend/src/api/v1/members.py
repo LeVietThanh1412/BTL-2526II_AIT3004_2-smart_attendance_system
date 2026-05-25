@@ -109,6 +109,18 @@ def approve_member(student_id: str, db: Session = Depends(get_db), admin: str = 
     if not user:
         raise HTTPException(status_code=404, detail="Không tìm thấy sinh viên.")
     user.is_approved = True
+    
+    from src.models.schedule import StudentSchedule
+    # Dùng cùng logic với /schedule/approve: nếu có lịch chờ duyệt thì xóa lịch cũ rồi duyệt lịch chờ
+    # Nếu không có lịch chờ (đăng ký lần đầu chưa submit), duyệt luôn lịch hiện tại
+    pending_count = db.query(StudentSchedule).filter(StudentSchedule.user_id == user.id, StudentSchedule.is_approved == False).count()
+    if pending_count > 0:
+        db.query(StudentSchedule).filter(StudentSchedule.user_id == user.id, StudentSchedule.is_approved == True).delete()
+        db.query(StudentSchedule).filter(StudentSchedule.user_id == user.id, StudentSchedule.is_approved == False).update({"is_approved": True})
+    else:
+        # Không có lịch nào cả (sv chưa đăng ký lịch) - không cần làm gì
+        pass
+    
     db.commit()
     return {"message": "Duyệt thành công."}
 

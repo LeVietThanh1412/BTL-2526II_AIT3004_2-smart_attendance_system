@@ -11,6 +11,7 @@ class ScheduleCreate(ScheduleBase):
 class ScheduleResponse(ScheduleBase):
     id: int
     user_id: int
+    is_approved: bool
 
     class Config:
         from_attributes = True

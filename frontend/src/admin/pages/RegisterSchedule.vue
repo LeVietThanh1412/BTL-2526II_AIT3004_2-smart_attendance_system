@@ -3,11 +3,11 @@
     <AdminSidebar />
 
     <main class="content">
-      <TopHeader title="Đăng ký lịch học" />
+      <TopHeader title="Đăng ký đổi ca học" />
 
       <section class="panel-card schedule-card">
         <div class="schedule-header">
-          <h2>Đăng ký Lịch học cho Sinh viên</h2>
+          <h2>Đăng ký Đổi ca học cho Sinh viên</h2>
         </div>
 
         <div class="form-section">
@@ -50,7 +50,10 @@
 
             <div class="actions">
               <button class="btn-success" @click="saveSchedule" :disabled="saving">
-                {{ saving ? 'Đang lưu...' : 'Lưu lịch học' }}
+                {{ saving ? 'Đang gửi...' : 'Gửi yêu cầu đổi lịch' }}
+              </button>
+              <button v-if="isAdmin" class="btn-primary" @click="approveSchedule" style="margin-top: 20px; margin-left: 10px;">
+                Duyệt lịch (Admin)
               </button>
             </div>
           </div>
@@ -64,7 +67,9 @@
 import { ref } from 'vue'
 import AdminSidebar from '../AdminSidebar.vue'
 import TopHeader from '../TopHeader.vue'
-import apiClient from '../../shared/api'
+import apiClient, { approveStudentSchedule } from '../../shared/api'
+
+const isAdmin = ref(!!localStorage.getItem('adminToken'))
 
 const studentId = ref('')
 const loading = ref(false)
@@ -131,13 +136,28 @@ const saveSchedule = async () => {
       shifts: s.shifts.join(',')
     }))
 
+  if (payloadSchedules.length === 0) {
+    alert('Vui lòng chọn ít nhất 1 ca học trước khi gửi yêu cầu.')
+    saving.value = false
+    return
+  }
+
   try {
     await apiClient.post(`/schedule/${studentId.value}`, { schedules: payloadSchedules })
-    alert('Lưu lịch học thành công!')
+    alert('Gửi yêu cầu đổi lịch học thành công! Vui lòng chờ Giảng viên duyệt.')
   } catch (error) {
     alert(error.response?.data?.detail || 'Lỗi khi lưu lịch học.')
   } finally {
     saving.value = false
+  }
+}
+
+const approveSchedule = async () => {
+  try {
+    await approveStudentSchedule(studentId.value)
+    alert('Duyệt lịch học thành công!')
+  } catch (error) {
+    alert(error.response?.data?.detail || 'Lỗi khi duyệt lịch.')
   }
 }
 </script>

@@ -111,6 +111,11 @@ export const approveMember = async (studentId) => {
   return data
 }
 
+export const approveStudentSchedule = async (studentId) => {
+  const { data } = await apiClient.post(`/schedule/${studentId}/approve`)
+  return data
+}
+
 export const deleteMember = async (studentId) => {
   const { data } = await apiClient.delete(`/members/${studentId}`)
   return data

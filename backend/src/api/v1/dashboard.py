@@ -314,9 +314,7 @@ def get_notifications(db: Session = Depends(get_db)):
         or 0
     )
 
-<<<<<<< Updated upstream
-    return NotificationResponse(count=count + late_count)
-=======
+
     # Count pending users
     pending_users_count = (
         db.query(func.count(User.id))
@@ -513,4 +511,4 @@ def export_attendance_logs(db: Session = Depends(get_db)):
         "Content-Disposition": "attachment; filename=attendance_logs.csv"
     }
     return StreamingResponse(iter_csv(), media_type="text/csv", headers=headers)
->>>>>>> Stashed changes
+

@@ -43,6 +43,11 @@ export const fetchNotificationCount = async () => {
   return data
 }
 
+export const fetchNotificationList = async () => {
+  const { data } = await apiClient.get('/dashboard/notifications/list')
+  return data ?? []
+}
+
 // ============= ENDPOINTS LOG ĐIỂM DANH =============
 export const fetchAttendanceLogs = async (page = 1, pageSize = 20) => {
   const { data } = await apiClient.get('/dashboard/attendance-logs', {

@@ -14,6 +14,7 @@ from src.core.config import settings
 from src.database import get_db
 from src.models.attendance import Attendance, AttendanceStatus
 from src.models.user import User
+from src.models.schedule import StudentSchedule
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -61,6 +62,16 @@ class AttendanceLogsResponse(BaseModel):
 
 class NotificationResponse(BaseModel):
     count: int
+
+
+class NotificationItem(BaseModel):
+    id: str
+    type: str  # "attendance_failed" | "attendance_late" | "new_student" | "schedule_change"
+    title: str
+    message: str
+    time: str
+    date: str
+    route: str
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -268,8 +279,8 @@ def get_attendance_logs(
 @router.get("/notifications", response_model=NotificationResponse)
 def get_notifications(db: Session = Depends(get_db)):
     """
-    Return unread notification count (late/unknown check-ins today).
-    Tra ve so thong bao chua doc (diem danh muon / khong ro ngay hom nay).
+    Return unread notification count (late/unknown check-ins today, pending users, pending schedules).
+    Tra ve so thong bao chua doc (diem danh muon / khong ro ngay hom nay, sv moi dang ky, doi ca).
     """
     today = date.today()
 
@@ -303,4 +314,203 @@ def get_notifications(db: Session = Depends(get_db)):
         or 0
     )
 
+<<<<<<< Updated upstream
     return NotificationResponse(count=count + late_count)
+=======
+    # Count pending users
+    pending_users_count = (
+        db.query(func.count(User.id))
+        .filter(User.is_approved == False)
+        .scalar()
+        or 0
+    )
+
+    # Count pending schedules
+    pending_schedules_count = (
+        db.query(func.count(StudentSchedule.id))
+        .filter(StudentSchedule.is_approved == False)
+        .scalar()
+        or 0
+    )
+
+    return NotificationResponse(
+        count=count + late_count + pending_users_count + pending_schedules_count
+    )
+
+
+@router.get("/notifications/list", response_model=list[NotificationItem])
+def get_notifications_list(db: Session = Depends(get_db)):
+    """
+    Return today's unread notifications details (late/unknown check-ins today, pending users, pending schedules).
+    Danh sach chi tiet thong bao (diem danh muon/loi trong ngay, sv moi, doi ca).
+    """
+    today = date.today()
+    items: list[NotificationItem] = []
+
+    # 1. Today's failed check-ins
+    failed_rows = (
+        db.query(Attendance, User)
+        .outerjoin(User, Attendance.user_id == User.id)
+        .filter(
+            func.date(Attendance.check_in_time) == today,
+            Attendance.status != AttendanceStatus.success,
+        )
+        .all()
+    )
+    for attendance, user in failed_rows:
+        dt: datetime = attendance.check_in_time
+        display_name = user.full_name if user else "Không xác định"
+        items.append(
+            NotificationItem(
+                id=f"att_failed_{attendance.id}",
+                type="attendance_failed",
+                title="Điểm danh thất bại",
+                message=f"Khuôn mặt không khớp hoặc lỗi chụp ảnh: {display_name}",
+                time=_fmt_time(dt) if dt else "--:--",
+                date=_fmt_date(dt) if dt else _fmt_date(attendance.attendance_date),
+                route="/admin/attendance-logs",
+            )
+        )
+
+    # 2. Today's late check-ins
+    late_filter = or_(
+        Attendance.is_late_override == True,
+        and_(
+            Attendance.is_late_override.is_(None),
+            or_(
+                func.hour(Attendance.check_in_time) > _LATE_HOUR,
+                and_(
+                    func.hour(Attendance.check_in_time) == _LATE_HOUR,
+                    func.minute(Attendance.check_in_time) > _LATE_MINUTE,
+                ),
+            )
+        )
+    )
+    late_rows = (
+        db.query(Attendance, User)
+        .outerjoin(User, Attendance.user_id == User.id)
+        .filter(
+            func.date(Attendance.check_in_time) == today,
+            Attendance.status == AttendanceStatus.success,
+            late_filter,
+        )
+        .all()
+    )
+    for attendance, user in late_rows:
+        dt: datetime = attendance.check_in_time
+        display_name = user.full_name if user else "Không xác định"
+        items.append(
+            NotificationItem(
+                id=f"att_late_{attendance.id}",
+                type="attendance_late",
+                title="Điểm danh muộn",
+                message=f"Sinh viên {display_name} điểm danh muộn ca học",
+                time=_fmt_time(dt) if dt else "--:--",
+                date=_fmt_date(dt) if dt else _fmt_date(attendance.attendance_date),
+                route="/admin/attendance-logs",
+            )
+        )
+
+    # 3. Pending users
+    pending_users = (
+        db.query(User)
+        .filter(User.is_approved == False)
+        .order_by(User.created_at.desc())
+        .all()
+    )
+    for user in pending_users:
+        dt: datetime = user.created_at
+        items.append(
+            NotificationItem(
+                id=f"usr_pending_{user.id}",
+                type="new_student",
+                title="Yêu cầu đăng ký mới",
+                message=f"Sinh viên {user.full_name} ({user.student_id}) đang chờ phê duyệt",
+                time=_fmt_time(dt) if dt else "--:--",
+                date=_fmt_date(dt) if dt else "--/--/----",
+                route="/admin/members",
+            )
+        )
+
+    # 4. Pending schedules
+    pending_schedules = (
+        db.query(StudentSchedule, User)
+        .join(User, StudentSchedule.user_id == User.id)
+        .filter(StudentSchedule.is_approved == False)
+        .order_by(StudentSchedule.created_at.desc())
+        .all()
+    )
+    for schedule, user in pending_schedules:
+        dt: datetime = schedule.created_at
+        items.append(
+            NotificationItem(
+                id=f"sch_pending_{schedule.id}",
+                type="schedule_change",
+                title="Yêu cầu đổi ca học",
+                message=f"Sinh viên {user.full_name} ({user.student_id}) yêu cầu đổi ca học",
+                time=_fmt_time(dt) if dt else "--:--",
+                date=_fmt_date(dt) if dt else "--/--/----",
+                route=f"/admin/schedule?student_id={user.student_id}",
+            )
+        )
+
+    # Parse and sort all items by date & time descending
+    def get_sort_key(item: NotificationItem):
+        try:
+            dt_str = f"{item.date} {item.time}"
+            return datetime.strptime(dt_str, "%d/%m/%Y %H:%M:%S")
+        except Exception:
+            return datetime.min
+
+    items.sort(key=get_sort_key, reverse=True)
+    return items
+
+
+@router.get("/export-attendance")
+def export_attendance_logs(db: Session = Depends(get_db)):
+    """
+    Export all attendance logs as CSV.
+    Xuat danh sach diem danh ra file CSV.
+    """
+    rows = (
+        db.query(Attendance, User)
+        .outerjoin(User, Attendance.user_id == User.id)
+        .order_by(Attendance.check_in_time.desc())
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Ma SV", "Ho Ten", "Thoi Gian Vao", "Thoi Gian Ra", "Ngay", "Trang Thai", "Camera", "Do Chinh Xac"])
+
+    def iter_csv():
+        yield output.getvalue().encode('utf-8-sig') # BOM for Excel
+        output.seek(0)
+        output.truncate(0)
+
+        for attendance, user in rows:
+            dt: datetime = attendance.check_in_time
+            display_name = user.full_name if user else "Khong ro"
+            display_student_id = user.student_id if user else ""
+            status_label, _ = _build_status(attendance)
+
+            writer.writerow([
+                attendance.id,
+                display_student_id,
+                display_name,
+                _fmt_time(dt) if dt else "--:--",
+                _fmt_time(attendance.check_out_time) if attendance.check_out_time else "--:--",
+                _fmt_date(dt) if dt else _fmt_date(attendance.attendance_date),
+                status_label + (f" ({attendance.override_reason})" if attendance.override_reason else ""),
+                attendance.camera_id,
+                f"{float(attendance.confidence_score or 0.0):.4f}"
+            ])
+            yield output.getvalue().encode('utf-8-sig')
+            output.seek(0)
+            output.truncate(0)
+
+    headers = {
+        "Content-Disposition": "attachment; filename=attendance_logs.csv"
+    }
+    return StreamingResponse(iter_csv(), media_type="text/csv", headers=headers)
+>>>>>>> Stashed changes

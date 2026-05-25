@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     default_camera_id: str = Field(default="cam_01", alias="DEFAULT_CAMERA_ID")
     time_late: str = Field(default="08:00", alias="TIME_LATE")
 
+    admin_username: str = Field(default="admin", alias="ADMIN_USERNAME")
+    admin_password: str = Field(default="admin", alias="ADMIN_PASSWORD")
+    jwt_secret: str = Field(default="super-secret-key-12345", alias="JWT_SECRET")
+
     database_url: str | None = Field(default=None, alias="DATABASE_URL")
     mysql_url: str | None = Field(default=None, alias="MYSQL_URL")
     mysql_host: str = Field(default="mysql", alias="MYSQL_HOST")

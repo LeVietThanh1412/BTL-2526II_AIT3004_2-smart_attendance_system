@@ -1,4 +1,13 @@
 {
     "python-envs.defaultEnvManager": "ms-python.python:conda",
-    "python-envs.defaultPackageManager": "ms-python.python:conda"
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+    "python.analysis.extraPaths": [
+        "./backend",
+        "./worker"
+    ],
+    "python.autoComplete.extraPaths": [
+        "./backend",
+        "./worker"
+    ]
 }

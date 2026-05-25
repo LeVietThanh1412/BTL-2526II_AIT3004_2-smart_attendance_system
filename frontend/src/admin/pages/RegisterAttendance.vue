@@ -71,6 +71,21 @@
               Đã chọn {{ selectedImageCount }} ảnh. Hệ thống cần tối thiểu {{ minimumImages }} ảnh để đăng ký.
             </p>
 
+            <div class="schedule-form" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+              <span class="field-label" style="display: block; margin-bottom: 10px;">Đăng ký ca học (Chọn ít nhất 1 ca)</span>
+              <div class="days-container">
+                <div v-for="(day, index) in days" :key="index" class="day-row">
+                  <div class="day-label">{{ day.name }}</div>
+                  <div class="shifts">
+                    <label class="shift-checkbox"><input type="checkbox" v-model="schedules[index].shifts" value="1" /> Ca 1</label>
+                    <label class="shift-checkbox"><input type="checkbox" v-model="schedules[index].shifts" value="2" /> Ca 2</label>
+                    <label class="shift-checkbox"><input type="checkbox" v-model="schedules[index].shifts" value="3" /> Ca 3</label>
+                    <label class="shift-checkbox"><input type="checkbox" v-model="schedules[index].shifts" value="4" /> Ca 4</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <button class="submit-btn" type="submit" :disabled="isSubmitting">
               {{ isSubmitting ? 'Đang đăng ký...' : 'Gửi đăng ký' }}
             </button>
@@ -125,7 +140,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import AdminSidebar from '../AdminSidebar.vue'
 import TopHeader from '../TopHeader.vue'
-import { registerEmployee, registerEmployeeVideo } from '../../shared/api'
+import apiClient, { registerEmployee, registerEmployeeVideo } from '../../shared/api'
 
 const studentId = ref('')
 const fullName = ref('')
@@ -143,6 +158,16 @@ const statusTone = ref('neutral')
 
 const minimumImages = 3
 const selectedImageCount = computed(() => selectedImages.value.length)
+
+const days = [
+  { id: 0, name: 'Thứ Hai' }, { id: 1, name: 'Thứ Ba' }, { id: 2, name: 'Thứ Tư' },
+  { id: 3, name: 'Thứ Năm' }, { id: 4, name: 'Thứ Sáu' }, { id: 5, name: 'Thứ Bảy' },
+]
+
+const schedules = ref([
+  { day_of_week: 0, shifts: [] }, { day_of_week: 1, shifts: [] }, { day_of_week: 2, shifts: [] },
+  { day_of_week: 3, shifts: [] }, { day_of_week: 4, shifts: [] }, { day_of_week: 5, shifts: [] },
+])
 
 let videoStream = null
 let mediaRecorder = null
@@ -352,6 +377,20 @@ const handleSubmit = async () => {
   statusMessage.value = ''
 
   try {
+    const payloadSchedules = schedules.value
+      .filter(s => s.shifts.length > 0)
+      .map(s => ({
+        day_of_week: s.day_of_week,
+        shifts: s.shifts.join(',')
+      }))
+
+    if (payloadSchedules.length === 0) {
+      statusMessage.value = 'Vui lòng chọn ít nhất 1 ca học.'
+      statusTone.value = 'error'
+      isSubmitting.value = false
+      return
+    }
+
     if (registrationMode.value === 'images') {
       const imagesBase64 = await Promise.all(selectedImages.value.map((file) => fileToBase64(file)))
 
@@ -361,7 +400,14 @@ const handleSubmit = async () => {
         images_base64: imagesBase64,
       })
 
-      statusMessage.value = `Đăng ký thành công: ${response.name} (${response.accepted_images} ảnh hợp lệ).`
+      // Đăng ký lịch học luôn
+      try {
+        await apiClient.post(`/schedule/${studentId.value}`, { schedules: payloadSchedules })
+      } catch (err) {
+        console.error("Lỗi đăng ký lịch", err)
+      }
+
+      statusMessage.value = `Đăng ký thành công: ${response.name} (${response.accepted_images} ảnh hợp lệ). Vui lòng chờ Giảng viên duyệt.`
     } else {
       const response = await registerEmployeeVideo({
         student_id: studentId.value,
@@ -369,7 +415,14 @@ const handleSubmit = async () => {
         videoFile: videoFile.value,
       })
 
-      statusMessage.value = `Đăng ký thành công: ${response.name} (${response.frames_processed} khung hình hợp lệ).`
+      // Đăng ký lịch học luôn
+      try {
+        await apiClient.post(`/schedule/${studentId.value}`, { schedules: payloadSchedules })
+      } catch (err) {
+        console.error("Lỗi đăng ký lịch", err)
+      }
+
+      statusMessage.value = `Đăng ký thành công: ${response.name} (${response.frames_processed} khung hình hợp lệ). Vui lòng chờ Giảng viên duyệt.`
     }
     statusTone.value = 'success'
   } catch (error) {
@@ -655,5 +708,36 @@ main.content {
   main.content {
     padding: 18px;
   }
+}
+
+.days-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.day-row {
+  display: flex;
+  align-items: center;
+  background-color: #f8fafc;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+.day-label {
+  width: 90px;
+  font-weight: 500;
+  font-size: 13px;
+}
+.shifts {
+  display: flex;
+  gap: 12px;
+}
+.shift-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  margin: 0 !important;
 }
 </style>

@@ -8,7 +8,10 @@
       <section class="panel-card logs-card">
         <div class="logs-header">
           <h2>Nhật ký điểm danh</h2>
-          <span class="total-count">Tổng: {{ totalItems }}</span>
+          <div class="header-actions">
+            <span class="total-count">Tổng: {{ totalItems }}</span>
+            <button class="export-btn" @click="exportCSV">Xuất Excel</button>
+          </div>
         </div>
 
         <div v-if="loading" class="loading">Đang tải dữ liệu...</div>
@@ -33,9 +36,15 @@
                   <td>{{ rowIndex(idx) }}</td>
                   <td>{{ item.student_id || 'Không rõ' }}</td>
                   <td>{{ item.name }}</td>
-                  <td>{{ item.time }} - {{ item.date }}</td>
+                  <td>{{ item.time }} - {{ item.date }}<br><small v-if="item.check_out_time">Out: {{ item.check_out_time }}</small></td>
                   <td>
-                    <span class="status-pill" :class="item.statusColor">{{ item.status }}</span>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="status-pill" :class="item.statusColor">{{ item.status }}</span>
+                        <button class="btn-edit" @click="openOverrideModal(item)" title="Sửa trạng thái">✏️</button>
+                      </div>
+                      <small v-if="item.override_reason" class="override-reason">Lý do: {{ item.override_reason }}</small>
+                    </div>
                   </td>
                   <td>{{ item.camera_id }}</td>
                   <td>{{ formatScore(item.confidence_score) }}</td>
@@ -53,16 +62,45 @@
           </div>
         </div>
       </section>
+
+      <!-- Override Modal -->
+      <div v-if="showOverrideModal" class="modal-overlay">
+        <div class="modal-content">
+          <h3>Sửa trạng thái điểm danh</h3>
+          <p>Sinh viên: <strong>{{ currentEditLog?.name }}</strong></p>
+          
+          <div class="form-group">
+            <label>Trạng thái</label>
+            <select v-model="editData.status">
+              <option value="success">Thành công / Có mặt</option>
+              <option value="failed">Thất bại / Về sớm</option>
+              <option value="absent_unexcused">Vắng không phép</option>
+              <option value="absent_excused">Vắng có phép</option>
+              <option value="present_incomplete">Có đến nhưng quên Check-out</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>Lý do thay đổi</label>
+            <input type="text" v-model="editData.reason" placeholder="Ví dụ: Giảng viên cho phép..." required />
+          </div>
+          
+          <div class="modal-actions">
+            <button class="btn-cancel" @click="showOverrideModal = false">Hủy</button>
+            <button class="btn-save" @click="saveOverride">Lưu</button>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 
 import AdminSidebar from '../AdminSidebar.vue'
 import TopHeader from '../TopHeader.vue'
-import { fetchAttendanceLogs } from '../../shared/api'
+import { fetchAttendanceLogs, overrideLateStatus } from '../../shared/api'
 
 const logs = ref([])
 const loading = ref(true)
@@ -71,6 +109,36 @@ const page = ref(1)
 const pageSize = ref(10)
 const totalPages = ref(1)
 const totalItems = ref(0)
+
+const showOverrideModal = ref(false)
+const currentEditLog = ref(null)
+const editData = ref({
+  status: 'success',
+  is_late: false,
+  reason: ''
+})
+
+const openOverrideModal = (log) => {
+  currentEditLog.value = log
+  editData.value.status = log.raw_status || 'success'
+  editData.value.is_late = log.is_late_override ?? false
+  editData.value.reason = log.override_reason || ''
+  showOverrideModal.value = true
+}
+
+const saveOverride = async () => {
+  if (!editData.value.reason) {
+    alert('Vui lòng nhập lý do.')
+    return
+  }
+  try {
+    await overrideLateStatus(currentEditLog.value.id, editData.value.status, editData.value.is_late, editData.value.reason)
+    showOverrideModal.value = false
+    await loadLogs()
+  } catch (err) {
+    alert('Lỗi khi lưu trạng thái')
+  }
+}
 
 const loadLogs = async () => {
   loading.value = true
@@ -111,7 +179,20 @@ const goNext = async () => {
   await loadLogs()
 }
 
-onMounted(loadLogs)
+const exportCSV = () => {
+  window.open('/api/v1/dashboard/export-attendance', '_blank')
+}
+
+let pollingInterval = null
+
+onMounted(() => {
+  loadLogs()
+  pollingInterval = setInterval(loadLogs, 5000)
+})
+
+onUnmounted(() => {
+  if (pollingInterval) clearInterval(pollingInterval)
+})
 </script>
 
 <style scoped>
@@ -144,9 +225,31 @@ main.content {
   font-size: 16px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
 .total-count {
   font-size: 12px;
   color: var(--text-sub);
+}
+
+.export-btn {
+  background-color: var(--success-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.export-btn:hover {
+  opacity: 0.9;
 }
 
 .table-wrap {
@@ -258,5 +361,93 @@ main.content {
   .logs-table td {
     padding: 10px 12px;
   }
+}
+
+.btn-edit {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  opacity: 0.6;
+}
+
+.btn-edit:hover {
+  background: #f1f5f9;
+  opacity: 1;
+}
+
+.override-reason {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 20px 25px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+
+.form-group select,
+.form-group input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btn-cancel {
+  padding: 8px 16px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-save {
+  padding: 8px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
 }
 </style>

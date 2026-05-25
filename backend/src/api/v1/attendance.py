@@ -4,6 +4,8 @@ from celery.exceptions import TimeoutError as CeleryTimeoutError
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
+from pydantic import BaseModel
+
 from src.core.celery_client import recognize_face_task
 from src.core.config import settings
 from src.core.qdrant_client import has_vectors_for_student
@@ -12,8 +14,19 @@ from src.models.attendance import Attendance, AttendanceStatus
 from src.models.user import User
 from src.schemas.attendance import AttendanceCheckResponse
 from src.services.storages import minio_service
+from src.api.v1.auth import get_current_admin
+
+from src.models.schedule import StudentSchedule
+from datetime import datetime, time, timedelta
 
 logger = logging.getLogger(__name__)
+
+SHIFTS = {
+    1: {"start": time(7, 0), "end": time(9, 40)},
+    2: {"start": time(9, 50), "end": time(12, 30)},
+    3: {"start": time(13, 30), "end": time(16, 10)},
+    4: {"start": time(16, 20), "end": time(19, 0)},
+}
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
 
@@ -42,6 +55,30 @@ async def check_in(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Mã sinh viên '{student_id}' không tồn tại trong hệ thống.",
+        )
+    if not user.is_approved:
+        logger.warning("Check-in failed: student_id=%s is not approved yet", student_id)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Sinh viên '{student_id}' chưa được Giảng viên duyệt.",
+        )
+
+    # --- Kiểm tra lịch học ---
+    today = datetime.now()
+    current_date = today.date()
+    current_time = today.time()
+    day_of_week = today.weekday() # 0 is Monday
+    
+    schedule = db.query(StudentSchedule).filter(
+        StudentSchedule.user_id == user.id,
+        StudentSchedule.day_of_week == day_of_week,
+        StudentSchedule.is_approved == True
+    ).first()
+    
+    if not schedule:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bạn không có lịch học đã được duyệt trong ngày hôm nay.",
         )
 
     # --- Bước 2: Kiểm tra sinh viên đã đăng ký khuôn mặt trên Qdrant chưa ---
@@ -116,16 +153,93 @@ async def check_in(
         student_id, score, threshold, matched, reason,
     )
 
-    # --- Lưu lịch sử điểm danh ---
-    attendance = Attendance(
-        user_id=user.id,
-        confidence_score=score,
-        camera_id=camera_id,
-        status=status_enum,
-    )
+    # --- Xử lý Check-in / Check-out (Multi-Session) ---
+    # Parse lịch học
+    # Parse lịch học - chỉ lấy shift_id hợp lệ có trong SHIFTS
+    shift_ids = [int(s.strip()) for s in schedule.shifts.split(",") if s.strip().isdigit() and int(s.strip()) in SHIFTS]
+    if not shift_ids:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Lịch học bị lỗi định dạng hoặc chứa ca không hợp lệ.")
+
+    last_shift = max(shift_ids)
+    end_time_of_last_shift = SHIFTS[last_shift]["end"]
+
+    # Ràng buộc thời gian hệ thống
+    if current_time < time(5, 30):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Hệ thống điểm danh chỉ mở từ 5h30 sáng."
+        )
+
+    # Lấy bản ghi attendance thành công gần nhất của user hôm nay
+    attendance = db.query(Attendance).filter(
+        Attendance.user_id == user.id,
+        Attendance.attendance_date == current_date,
+        Attendance.status == AttendanceStatus.success
+    ).order_by(Attendance.check_in_time.desc()).first()
+
+    if not attendance or attendance.check_out_time is not None:
+        # Đây là Check-in MỚI (Mở 1 phiên mới)
+        if current_time > end_time_of_last_shift:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Ca học cuối cùng của bạn đã kết thúc, không thể điểm danh vào thêm."
+            )
+        if status_enum != AttendanceStatus.success:
+            # Nhận diện thất bại - chỉ ghi log, không mở phiên check-in
+            failed_attendance = Attendance(
+                user_id=user.id,
+                attendance_date=current_date,
+                check_in_time=today,
+                confidence_score=score,
+                camera_id=camera_id,
+                status=status_enum,
+            )
+            db.add(failed_attendance)
+            try:
+                db.commit()
+            except Exception as exc:
+                db.rollback()
+            return AttendanceCheckResponse(
+                status=status_value,
+                student_id=student_id,
+                match_score=score,
+                threshold=threshold,
+                matched=matched,
+                reason=reason,
+                message=f"Check-in thất bại: {reason or 'Nhận diện khuôn mặt không thành công.'}",
+            )
+        attendance = Attendance(
+            user_id=user.id,
+            attendance_date=current_date,
+            check_in_time=today,
+            confidence_score=score,
+            camera_id=camera_id,
+            status=status_enum,
+        )
+        message = f"Check-in thành công ({today.strftime('%H:%M:%S')})."
+        db.add(attendance)
+    else:
+        # Đây là Check-out của phiên hiện tại
+        if status_enum != AttendanceStatus.success:
+            # Nếu check-out thất bại (nhận diện sai mặt), tạo log lỗi nhưng không cập nhật check-out
+            failed_log = Attendance(
+                user_id=user.id,
+                attendance_date=current_date,
+                check_in_time=today,
+                confidence_score=score,
+                camera_id=camera_id,
+                status=status_enum,
+            )
+            db.add(failed_log)
+            message = f"Check-out thất bại: {reason}"
+        else:
+            attendance.check_out_time = today
+            attendance.status = AttendanceStatus.success # Ghi nhận check-out thành công
+            attendance.confidence_score = score
+            attendance.camera_id = camera_id
+            message = f"Check-out thành công ({today.strftime('%H:%M:%S')})."
 
     try:
-        db.add(attendance)
         db.commit()
     except Exception as exc:
         db.rollback()
@@ -143,6 +257,36 @@ async def check_in(
         reason=reason,
         message=str(message),
     )
+
+
+class OverrideRequest(BaseModel):
+    status: str
+    is_late_override: bool
+    override_reason: str
+
+
+@router.put("/{attendance_id}/override")
+def override_late_status(
+    attendance_id: int,
+    payload: OverrideRequest,
+    db: Session = Depends(get_db),
+    admin: str = Depends(get_current_admin)
+):
+    """
+    Giảng viên sửa đổi trạng thái đi muộn của bản ghi điểm danh
+    """
+    attendance = db.query(Attendance).filter(Attendance.id == attendance_id).first()
+    if not attendance:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh.")
+    
+    attendance.is_late_override = payload.is_late_override
+    attendance.override_reason = payload.override_reason
+    if payload.status in [e.value for e in AttendanceStatus]:
+        attendance.status = AttendanceStatus(payload.status)
+        
+    db.commit()
+    
+    return {"message": "Đã sửa trạng thái điểm danh thành công."}
 
 
 # Các endpoint cũ (giữ lại dưới dạng comment để tham khảo)

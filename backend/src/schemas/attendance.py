@@ -15,6 +15,12 @@ class AttendanceCheckResponse(BaseModel):
 	matched: bool = Field(default=False, description="Whether the face matched")
 	reason: str | None = Field(default=None, description="Detailed reason for the result")
 	message: str
+	action: str | None = Field(default=None, description="check_in hoặc check_out")
+	is_late: bool | None = Field(default=None, description="True nếu điểm danh muộn")
+	check_in_time: str | None = Field(default=None, description="Giờ check-in")
+	check_out_time: str | None = Field(default=None, description="Giờ check-out")
+	shift_start: str | None = Field(default=None, description="Giờ bắt đầu ca")
+	shift_end: str | None = Field(default=None, description="Giờ kết thúc ca")
 
 
 class AttendanceVerifyRequest(BaseModel):

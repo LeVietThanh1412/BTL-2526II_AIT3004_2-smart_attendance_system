@@ -38,12 +38,24 @@
                         {{ isProcessing ? 'Đang nhận diện...' : 'Bắt đầu điểm danh' }}
                     </button>
 
-                    <div v-if="result" class="result-area" :class="{ error: result.isError }">
+                    <div v-if="result" class="result-area" :class="resultClass">
+                        <div class="result-icon">{{ resultIcon }}</div>
                         <div class="result-info">
                             <h4>{{ result.userName }}</h4>
+                            <p class="result-action-label">{{ result.actionLabel }}</p>
                             <p>{{ result.checkInTime }}</p>
+                            <div v-if="result.shiftInfo" class="shift-info">
+                                Ca học: {{ result.shiftInfo }}
+                            </div>
+                            <div v-if="result.detailTimes" class="detail-times">
+                                <span v-if="result.detailTimes.in">Check-in: <strong>{{ result.detailTimes.in }}</strong></span>
+                                <span v-if="result.detailTimes.out"> → Check-out: <strong>{{ result.detailTimes.out }}</strong></span>
+                            </div>
                         </div>
-                        <div class="result-status">{{ result.statusText }}</div>
+                        <div class="result-badges">
+                            <div class="result-status" :class="resultStatusClass">{{ result.statusText }}</div>
+                            <div v-if="result.isLate" class="late-badge">⚠️ Muộn</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -52,7 +64,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AdminSidebar from '../admin/AdminSidebar.vue'
 import TopHeader from '../admin/TopHeader.vue'
 import { submitCheckIn } from '../shared/api'
@@ -65,6 +77,28 @@ const result = ref(null)
 
 // Khai báo biến reactive để lưu trữ mã sinh viên
 const studentId = ref('')
+
+const resultClass = computed(() => {
+    if (!result.value) return ''
+    if (result.value.isError) return 'error'
+    if (result.value.isLate) return 'late'
+    return 'success-state'
+})
+
+const resultIcon = computed(() => {
+    if (!result.value) return ''
+    if (result.value.isError) return '❌'
+    const action = result.value.actionLabel || ''
+    if (action.includes('Check-out')) return '👋'
+    return '✅'
+})
+
+const resultStatusClass = computed(() => {
+    if (!result.value) return ''
+    if (result.value.isError) return 'status-error'
+    if (result.value.isLate) return 'status-late'
+    return 'status-ok'
+})
 
 let videoStream = null
 
@@ -124,11 +158,36 @@ const handleCheckIn = async () => {
         const res = await submitCheckIn(base64, studentId.value.trim())
         
         const now = new Date()
+        const action = res.action // 'check_in' | 'check_out'
+        const isLate = res.is_late === true
+        const isError = res.status !== 'success' || !res.matched
+
+        // Label hành động
+        let actionLabel = ''
+        let statusText = ''
+        if (action === 'check_in') {
+            actionLabel = isLate ? '↗️ Check-in (Muộn)' : '↗️ Check-in'
+            statusText = isError ? 'Thất bại' : (isLate ? 'Vào muộn' : 'Vào đúng giờ')
+        } else if (action === 'check_out') {
+            actionLabel = '↘️ Check-out'
+            statusText = isError ? 'Thất bại' : 'Ra về'
+        } else {
+            statusText = isError ? 'Thất bại' : 'Thành công'
+        }
+
         result.value = {
             userName: res.student_name ? `SV: ${res.student_name}` : `Mã SV: ${studentId.value.trim()}`,
             checkInTime: `${formatTime(now)} - ${formatShortDate(now)}`,
-            statusText: res.message || (res.status === 'success' ? 'Điểm danh thành công!' : 'Điểm danh thất bại!'),
-            isError: res.status !== 'success',
+            actionLabel,
+            statusText,
+            isError,
+            isLate,
+            shiftInfo: (res.shift_start && res.shift_end) ? `${res.shift_start} – ${res.shift_end}` : null,
+            detailTimes: (res.check_in_time || res.check_out_time) ? {
+                in: res.check_in_time,
+                out: res.check_out_time,
+            } : null,
+            message: res.message,
         }
 
         // Điểm danh thành công thì có thể xóa trống ô nhập (tùy chọn)
@@ -351,13 +410,83 @@ main.content {
     border-radius: 12px;
     padding: 18px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 14px;
 }
 
 .result-area.error {
     background-color: #fef2f2;
     border-color: #fecaca;
+}
+
+.result-area.late {
+    background-color: #fffbeb;
+    border-color: #fde68a;
+}
+
+.result-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.result-action-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin: 2px 0 4px;
+}
+
+.shift-info {
+    font-size: 12px;
+    color: var(--text-sub);
+    margin-top: 4px;
+}
+
+.detail-times {
+    font-size: 12px;
+    color: var(--text-sub);
+    margin-top: 4px;
+}
+
+.result-badges {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.result-status {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.result-status.status-ok {
+    background-color: #ecfdf5;
+    color: var(--success-color);
+}
+
+.result-status.status-late {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.result-status.status-error {
+    background-color: #fee2e2;
+    color: var(--danger-color);
+}
+
+.late-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    background-color: #fef3c7;
+    color: #92400e;
+    font-size: 11px;
+    font-weight: 600;
 }
 
 .result-info {

@@ -2,7 +2,7 @@
     <aside class="sidebar">
         <div>
             <div class="logo-area">
-                <div class="logo-icon">SA</div>
+                <img src="/iai-logo.jpg" alt="IAI Logo" class="logo-img" />
                 <div>
                     <h2 style="margin:0; font-size:16px;">Điểm danh thông minh</h2>
                     <p style="margin:0; color:var(--text-sub); font-size:10px;">Nhận diện khuôn mặt AI</p>
@@ -27,6 +27,16 @@
                         </router-link>
                     </li>
                     <li>
+                        <router-link to="/admin/schedule" active-class="active">
+                            <span>📅</span> Đăng ký đổi ca học
+                        </router-link>
+                    </li>
+                    <li>
+                        <router-link to="/admin/members" active-class="active">
+                            <span>👥</span> Quản lý Sinh viên
+                        </router-link>
+                    </li>
+                    <li>
                         <router-link to="/checkin" active-class="active">
                             <span>📷</span> Camera điểm danh
                         </router-link>
@@ -36,7 +46,7 @@
                 <h3>Hệ thống</h3>
                 <ul>
                     <li><a href="#"><span>⚙️</span> Cài đặt</a></li>
-                    <li><a href="#"><span>❓</span> Trợ giúp</a></li>
+                    <li><a href="#" @click.prevent="handleLogout"><span>🚪</span> Đăng xuất</a></li>
                 </ul>
             </nav>
         </div>
@@ -44,7 +54,14 @@
 </template>
 
 <script setup>
-// Sidebar dùng chung cho mọi trang Admin
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+const handleLogout = () => {
+    localStorage.removeItem('adminToken')
+    router.push('/login')
+}
 </script>
 
 <style scoped>
@@ -66,17 +83,11 @@ aside.sidebar {
     margin-bottom: 35px;
 }
 
-.logo-icon {
-    width: 36px;
-    height: 36px;
-    background-color: var(--primary-color);
+.logo-img {
+    width: 40px;
+    height: 40px;
     border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: bold;
-    font-size: 18px;
+    object-fit: cover;
 }
 
 .nav-area {

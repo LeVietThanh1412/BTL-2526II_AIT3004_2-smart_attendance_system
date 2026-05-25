@@ -4,8 +4,11 @@ API endpoints dashboard - thong ke va hoat dong gan day.
 """
 from datetime import date, datetime
 import math
+import io
+import csv
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
@@ -46,10 +49,14 @@ class AttendanceLogItem(BaseModel):
     name: str
     time: str
     date: str
+    check_out_time: str | None = None
     status: str
     statusColor: str
+    raw_status: str
     camera_id: str
     confidence_score: float
+    is_late_override: bool | None = None
+    override_reason: str | None = None
 
 
 class AttendanceLogsResponse(BaseModel):
@@ -120,11 +127,27 @@ def _is_late(dt: datetime) -> bool:
 
 def _build_status(attendance: Attendance) -> tuple[str, str]:
     if attendance.status == AttendanceStatus.success:
-        late = _is_late(attendance.check_in_time)
-        return ("Đi muộn" if late else "Đúng giờ", "red" if late else "green")
+        if attendance.is_late_override is not None:
+            late = attendance.is_late_override
+        else:
+            late = _is_late(attendance.check_in_time)
+            
+        if late:
+            return ("Hoàn thành (Muộn)" if attendance.check_out_time else "Vào muộn", "yellow")
+        
+        return ("Hoàn thành" if attendance.check_out_time else "Vào đúng giờ", "green")
 
     if attendance.status == AttendanceStatus.failed:
-        return ("Không nhận diện", "red")
+        return ("Nhận diện lỗi / Thất bại", "red")
+        
+    if attendance.status == AttendanceStatus.absent_unexcused:
+        return ("Vắng không phép", "red")
+        
+    if attendance.status == AttendanceStatus.absent_excused:
+        return ("Vắng có phép", "yellow")
+        
+    if attendance.status == AttendanceStatus.present_incomplete:
+        return ("Quên check-out", "yellow")
 
     return ("Không xác định", "yellow")
 
@@ -157,11 +180,17 @@ def get_statistics(db: Session = Depends(get_db)):
     missing_count = max(0, total_members - checked_in_count)
 
     on_time_filter = or_(
-        func.hour(Attendance.check_in_time) < _LATE_HOUR,
+        Attendance.is_late_override == False,
         and_(
-            func.hour(Attendance.check_in_time) == _LATE_HOUR,
-            func.minute(Attendance.check_in_time) <= _LATE_MINUTE,
-        ),
+            Attendance.is_late_override.is_(None),
+            or_(
+                func.hour(Attendance.check_in_time) < _LATE_HOUR,
+                and_(
+                    func.hour(Attendance.check_in_time) == _LATE_HOUR,
+                    func.minute(Attendance.check_in_time) <= _LATE_MINUTE,
+                ),
+            )
+        )
     )
 
     # On-time: checked in before or at TIME_LATE
@@ -258,12 +287,16 @@ def get_attendance_logs(
                 id=attendance.id,
                 student_id=display_student_id,
                 name=display_name,
-                time=_fmt_time(dt),
-                date=_fmt_date(dt),
+                time=_fmt_time(dt) if dt else "--:--",
+                date=_fmt_date(dt) if dt else _fmt_date(attendance.attendance_date),
+                check_out_time=_fmt_time(attendance.check_out_time) if attendance.check_out_time else None,
                 status=status_label,
                 statusColor=color,
+                raw_status=attendance.status.value,
                 camera_id=attendance.camera_id,
                 confidence_score=float(attendance.confidence_score or 0.0),
+                is_late_override=attendance.is_late_override,
+                override_reason=attendance.override_reason,
             )
         )
 
@@ -295,11 +328,17 @@ def get_notifications(db: Session = Depends(get_db)):
     )
 
     late_filter = or_(
-        func.hour(Attendance.check_in_time) > _LATE_HOUR,
+        Attendance.is_late_override == True,
         and_(
-            func.hour(Attendance.check_in_time) == _LATE_HOUR,
-            func.minute(Attendance.check_in_time) > _LATE_MINUTE,
-        ),
+            Attendance.is_late_override.is_(None),
+            or_(
+                func.hour(Attendance.check_in_time) > _LATE_HOUR,
+                and_(
+                    func.hour(Attendance.check_in_time) == _LATE_HOUR,
+                    func.minute(Attendance.check_in_time) > _LATE_MINUTE,
+                ),
+            )
+        )
     )
 
     # Also count users who checked in late

@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Boolean, Date
 from sqlalchemy.orm import relationship, synonym
 from sqlalchemy.sql import func
 from src.database.Base import Base
@@ -9,16 +9,23 @@ class AttendanceStatus(str, enum.Enum):
     success = "success"
     unknown = "unknown"
     failed = "failed"
+    absent_unexcused = "absent_unexcused"
+    absent_excused = "absent_excused"
+    present_incomplete = "present_incomplete"
 
 class Attendance(Base):
     __tablename__ = "attendances"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    check_in_time = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    attendance_date = Column(Date, default=func.current_date(), nullable=False, index=True)
+    check_in_time = Column(DateTime(timezone=True), nullable=True, index=True)
+    check_out_time = Column(DateTime(timezone=True), nullable=True, index=True)
     confidence_score = Column(Float, nullable=False)
     camera_id = Column(String(50), nullable=False)
     status = Column(Enum(AttendanceStatus, name="attendance_status"), nullable=False)
+    is_late_override = Column(Boolean, nullable=True)
+    override_reason = Column(String(255), nullable=True)
 
     similarity_score = synonym("confidence_score")
 

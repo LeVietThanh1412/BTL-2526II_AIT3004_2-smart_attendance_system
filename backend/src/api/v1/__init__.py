@@ -3,9 +3,12 @@ from fastapi import APIRouter
 from src.api.v1.attendance import router as attendance_router
 from src.api.v1.dashboard import router as dashboard_router
 from src.api.v1.members import router as members_router
-
+from src.api.v1.auth import router as auth_router
+from src.api.v1.schedule import router as schedule_router
 
 api_v1_router = APIRouter()
 api_v1_router.include_router(members_router)
 api_v1_router.include_router(attendance_router)
 api_v1_router.include_router(dashboard_router)
+api_v1_router.include_router(auth_router)
+api_v1_router.include_router(schedule_router)

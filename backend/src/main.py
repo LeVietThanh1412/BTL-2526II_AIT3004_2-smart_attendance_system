@@ -11,8 +11,43 @@ from src.models import AttendanceLog, FaceEmbedding, User
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Khởi tạo MySQL
     _ = (User, FaceEmbedding, AttendanceLog)
     Base.metadata.create_all(bind=engine)
+    
+    # Khởi tạo Qdrant ngay từ đầu thay vì đợi tương tác
+    try:
+        from src.core.qdrant_client import ensure_qdrant_collection
+        vector_size = 512 if settings.deepface_model_name in ["ArcFace", "Facenet512"] else 128
+        ensure_qdrant_collection(vector_size=vector_size)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Lỗi khởi tạo Qdrant: {e}")
+
+    # Cập nhật schema tự động (Auto Migration cho bản cũ)
+    try:
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            try:
+                conn.execute(text("ALTER TABLE student_schedules ADD COLUMN is_approved BOOLEAN DEFAULT FALSE;"))
+            except Exception: pass
+            try:
+                conn.execute(text("ALTER TABLE student_schedules ADD COLUMN is_active BOOLEAN DEFAULT TRUE;"))
+            except Exception: pass
+            try:
+                conn.execute(text("ALTER TABLE student_schedules ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;"))
+            except Exception: pass
+            try:
+                conn.execute(text("ALTER TABLE student_schedules ADD COLUMN approved_at DATETIME NULL;"))
+            except Exception: pass
+    except Exception as e:
+        pass
+
+
+    # Khởi động daily scheduler quét điểm danh
+    from src.core.scheduler import start_scheduler
+    start_scheduler()
+
     yield
 
 

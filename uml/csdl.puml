@@ -1,0 +1,35 @@
+@startuml
+
+skinparam linetype ortho
+
+entity "users" as users {
+  *id : integer <<PK>>
+  --
+  student_id : varchar(30) <<Unique>>
+  full_name : varchar(255)
+  class_name : varchar(50)
+  created_at : datetime
+}
+
+entity "attendances" as attendances {
+  *id : integer <<PK>>
+  --
+  user_id : integer <<FK>>
+  check_in_time : datetime
+  camera_id : varchar(50)
+  confidence_score : float
+  status : enum('success', 'failed')
+}
+
+entity "face_embeddings" as qdrant_vectors {
+  *id : integer (Qdrant UUID)
+  --
+  student_id : varchar(30) <<Indexed>>
+  user_id : integer
+  vector : float[512]
+}
+
+users ||--o{ attendances : "có nhiều"
+users ||--o{ qdrant_vectors : "đăng ký"
+
+@enduml

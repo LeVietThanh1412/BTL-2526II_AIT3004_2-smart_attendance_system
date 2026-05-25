@@ -1,6 +1,5 @@
 """
-Qdrant vector database client and collection management.
-Quan ly ket noi Qdrant va cac collection vector.
+Quản lý kết nối Qdrant và các collection chứa vector.
 """
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
@@ -8,29 +7,26 @@ from qdrant_client.http import models as qmodels
 from src.core.config import settings
 
 
-# Initialize Qdrant client
+# Khởi tạo Qdrant client
 qdrant_client = QdrantClient(url=settings.qdrant_url)
 
 
 def ensure_qdrant_collection(vector_size: int) -> None:
-    """
-    Ensure Qdrant collection exists for face embeddings.
-    If collection doesn't exist, create it with specified vector size.
-
-    Dam bao collection Qdrant ton tai cho face embeddings.
-    Neu collection khong ton tai, tao no voi kich thuoc vector cu the.
-
-    Args:
-        vector_size: Dimension of face embedding vectors (typically 512 for ArcFace, 128 for FaceNet)
-    """
     collection_name = settings.qdrant_collection
+    
     collections = qdrant_client.get_collections().collections
-    if any(col.name == collection_name for col in collections):
-        return
+    target_col = next((col for col in collections if col.name == collection_name), None)
+    if target_col:
+        info = qdrant_client.get_collection(collection_name)
+        if info.config.params.vectors.size != vector_size:
+            qdrant_client.delete_collection(collection_name)
+        else:
+            return
     qdrant_client.create_collection(
         collection_name=collection_name,
         vectors_config=qmodels.VectorParams(size=vector_size, distance=qmodels.Distance.COSINE),
     )
+
 
 
 def upsert_embedding(
@@ -39,17 +35,15 @@ def upsert_embedding(
     vector: list,
 ) -> None:
     """
-    Upsert face embedding vector to Qdrant collection.
-
-    Them hoac cap nhat face embedding vector vao collection Qdrant.
+    Thêm hoặc cập nhật face embedding vector vào collection trên Qdrant.
 
     Args:
-        user_id: User ID to use as point ID
-        student_id: Student ID for payload
-        vector: Face embedding vector (list of floats)
+        user_id: ID người dùng dùng làm point ID
+        student_id: Mã sinh viên dùng để lưu vào payload
+        vector: Face embedding vector (danh sách các số thực)
 
     Raises:
-        Exception: If upsert fails
+        Exception: Nếu thêm/cập nhật thất bại
     """
     qdrant_client.upsert(
         collection_name=settings.qdrant_collection,
@@ -68,15 +62,13 @@ def upsert_embedding(
 
 def has_vectors_for_student(student_id: str) -> bool:
     """
-    Check if a student has any face embedding vectors in Qdrant.
-
-    Kiem tra xem sinh vien co vector khuon mat nao trong Qdrant khong.
+    Kiểm tra xem sinh viên có vector khuôn mặt nào trong Qdrant không.
 
     Args:
-        student_id: Student ID to check
+        student_id: Mã sinh viên cần kiểm tra
 
     Returns:
-        True if at least one vector exists for the student
+        True nếu có ít nhất một vector của sinh viên
     """
     try:
         results, _ = qdrant_client.scroll(

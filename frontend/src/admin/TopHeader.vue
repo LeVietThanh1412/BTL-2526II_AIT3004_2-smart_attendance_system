@@ -2,6 +2,10 @@
     <header class="top-header">
         <h1>{{ title }}</h1>
         <div class="header-actions">
+            <router-link to="/checkin" class="back-checkin-btn">
+                <span>📷</span> Điểm danh
+            </router-link>
+
             <div class="date-time">
                 <span><span>📅</span> {{ currentDate }}</span>
                 <span><span>⏱️</span> {{ currentTime }}</span>
@@ -265,6 +269,24 @@ header h1 {
     display: flex;
     align-items: center;
     gap: 15px;
+}
+
+.back-checkin-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: var(--primary-color, #3b82f6);
+    color: white;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 15px;
+    border-radius: 8px;
+    transition: opacity 0.2s;
+}
+
+.back-checkin-btn:hover {
+    opacity: 0.9;
 }
 
 .date-time {

@@ -41,153 +41,146 @@ Dự án được phân tách thành các service độc lập để tối ưu k
 Dự án áp dụng mô hình Monorepo, quản lý tập trung toàn bộ code frontend, backend và worker. Chi tiết ý nghĩa từng file:
 
 ```bash
-.
-├── backend
-│   ├── Dockerfile             # Cấu hình build image Docker cho Backend
-│   ├── README.md              # Hướng dẫn chi tiết cho phần Backend
-│   ├── requirements.txt       # Danh sách các thư viện Python cần cài đặt
-│   └── src
+/BTL-2526II_AIT3004_2-smart_attendance_system
+├── backend                  # Thư mục chứa mã nguồn Backend (FastAPI)
+│   ├── Dockerfile           # Cấu hình build Docker cho Backend
+│   ├── README.md            # Tài liệu hướng dẫn riêng cho Backend
+│   ├── requirements.txt     # Các thư viện Python cần cài đặt
+│   └── src                  # Mã nguồn chính
 │       ├── api
-│       │   ├── __init__.py    # Khởi tạo module API
-│       │   └── v1
-│       │       ├── attendance.py # API xử lý điểm danh (chụp ảnh, xác thực)
-│       │       ├── auth.py       # API xác thực người dùng (đăng nhập Admin)
+│       │   ├── __init__.py
+│       │   └── v1           # Các endpoint API version 1
+│       │       ├── attendance.py # API xử lý chụp ảnh và điểm danh
+│       │       ├── auth.py       # API đăng nhập Admin qua JWT
 │       │       ├── dashboard.py  # API lấy thống kê cho màn hình Dashboard
-│       │       ├── __init__.py   # Khởi tạo module v1
-│       │       └── members.py    # API quản lý thông tin sinh viên
+│       │       ├── __init__.py
+│       │       ├── members.py    # API thêm/sửa/xóa sinh viên
+│       │       └── schedule.py   # API quản lý ca học (Shift Management)
 │       ├── core
-│       │   ├── celery_client.py  # Cấu hình kết nối tới Celery Worker
-│       │   ├── config.py         # Đọc và load các biến môi trường (.env)
-│       │   ├── __init__.py       # Khởi tạo module core
-│       │   ├── qdrant_client.py  # Cấu hình kết nối tới Qdrant Vector DB
-│       │   └── security.py       # Xử lý mã hóa mật khẩu, tạo token JWT
+│       │   ├── celery_client.py  # Kết nối tới Celery Worker
+│       │   ├── config.py         # Load biến môi trường (.env)
+│       │   ├── __init__.py
+│       │   ├── qdrant_client.py  # Kết nối tới Vector DB (Qdrant)
+│       │   ├── scheduler.py      # Job chạy ngầm (Cron) tự động đánh vắng
+│       │   └── security.py       # Logic mã hóa Password & Token
 │       ├── database
 │       │   ├── Base.py           # Khởi tạo kết nối MySQL bằng SQLAlchemy
-│       │   └── __init__.py       # Khởi tạo module database
-│       ├── __init__.py           # Khởi tạo module src
-│       ├── main.py               # Điểm bắt đầu (entrypoint) chạy FastAPI
-│       ├── models
-│       │   ├── attendance.py     # Định nghĩa table `attendances` trong MySQL
-│       │   ├── face_embedding.py # Định nghĩa table `face_embeddings` trong MySQL
-│       │   ├── __init__.py       # Khởi tạo module models
-│       │   └── user.py           # Định nghĩa table `users` trong MySQL
-│       ├── schemas
-│       │   ├── attendance.py     # Định nghĩa Pydantic schema cho Attendance API
-│       │   ├── __init__.py       # Khởi tạo module schemas
-│       │   └── user.py           # Định nghĩa Pydantic schema cho User API
-│       ├── services
-│       │   ├── __init__.py       # Khởi tạo module services
-│       │   ├── member_service.py # Logic nghiệp vụ quản lý sinh viên
-│       │   ├── redis_query.py    # Logic tương tác caching với Redis
-│       │   └── storages.py       # Logic upload và lưu ảnh gốc vào MinIO
-│       └── utils
-│           ├── __init__.py       # Khởi tạo module utils
-│           └── video_processor.py# Các tiện ích xử lý khung hình/video nếu có
-├── docker-compose-network.yml    # Cấu hình mạng riêng biệt cho Docker
-├── docker-compose.yml            # File chính khởi tạo 7 containers cùng lúc
-├── document.md                   # Tài liệu ghi chú hệ thống
-├── frontend
-│   ├── Dockerfile                # Cấu hình build image Docker cho Frontend
-│   ├── index.html                # Trang web gốc chứa thẻ div '#app'
-│   ├── package.json              # Khai báo các thư viện Javascript
-│   ├── pnpm-lock.yaml            # Khóa phiên bản của các thư viện JS
-│   ├── public
-│   │   ├── favicon.ico           # Biểu tượng trang web
-│   │   └── manifest.json         # Cấu hình PWA
-│   ├── src
-│   │   ├── admin
-│   │   │   ├── AdminSidebar.vue  # Menu bên trái Admin
-│   │   │   ├── Dashbroad.vue     # Bố cục chính trang Admin
+│       │   └── __init__.py
+│       ├── __init__.py
+│       ├── main.py               # Entrypoint chạy FastAPI
+│       ├── models                # Định nghĩa các Table trong MySQL
+│       │   ├── attendance.py
+│       │   ├── face_embedding.py
+│       │   ├── __init__.py
+│       │   ├── schedule.py
+│       │   └── user.py
+│       ├── reset_db.py           # Script reset/khởi tạo lại Database
+│       ├── schemas               # Định nghĩa dữ liệu đầu vào/ra (Pydantic)
+│       │   ├── attendance.py
+│       │   ├── __init__.py
+│       │   ├── schedule.py
+│       │   └── user.py
+│       ├── services              # Chứa logic nghiệp vụ lõi
+│       │   ├── __init__.py
+│       │   ├── member_service.py
+│       │   ├── redis_query.py    # Logic Cache dữ liệu
+│       │   └── storages.py       # Logic Upload ảnh lên MinIO S3
+│       └── utils                 # Các hàm tiện ích dùng chung
+│           ├── __init__.py
+│           └── video_processor.py
+├── backup                        # Chứa service backup dữ liệu
+│   ├── backup.sh                 # Script chạy cron đồng bộ MySQL/Qdrant
+│   └── Dockerfile                # Cấu hình container Backup
+├── demo                          # Thư mục chứa ảnh Demo Giao diện
+│   ├── dang_ki_diem_danh.png
+│   ├── dang_nhap_admin.png
+│   └── dashbroad.png
+├── docker-compose-network.yml    # Khai báo Network dùng chung cho Docker
+├── docker-compose.yml            # File quan trọng khởi tạo toàn bộ 8 services
+├── document.md                   # Chứa tài liệu ghi chú
+├── frontend                      # Thư mục chứa mã nguồn Frontend (Vue 3)
+│   ├── Dockerfile                # Cấu hình build Docker cho Frontend
+│   ├── index.html                # Trang web gốc
+│   ├── package.json              # Khai báo thư viện JS
+│   ├── pnpm-lock.yaml            # Khóa version thư viện
+│   ├── public                    # Thư mục public assets
+│   │   ├── favicon.ico
+│   │   ├── iai-logo.jpg
+│   │   └── manifest.json
+│   ├── src                       # Mã nguồn Vue JS
+│   │   ├── admin                 # Giao diện dành cho Admin
+│   │   │   ├── AdminSidebar.vue
+│   │   │   ├── Dashbroad.vue
 │   │   │   ├── pages
-│   │   │   │   ├── AttendanceLogs.vue # Lịch sử điểm danh chi tiết
-│   │   │   │   ├── Dashboard.vue      # Thống kê tổng quan (Admin)
-│   │   │   │   └── RegisterAttendance.vue # Đăng ký khuôn mặt sinh viên
-│   │   │   ├── RecentActivity.vue# Các hoạt động gần nhất
-│   │   │   ├── StatCard.vue      # Card thống kê
-│   │   │   └── TopHeader.vue     # Thanh menu trên cùng
-│   │   ├── App.vue               # Component gốc VueJS
-│   │   ├── main.js               # Điểm bắt đầu (entrypoint) VueJS
-│   │   ├── router.js             # Điều hướng (routing) các trang
-│   │   ├── shared
-│   │   │   ├── api.js            # Khởi tạo axios gọi API
-│   │   │   ├── dateUtils.js      # Tiện ích format ngày tháng
-│   │   │   └── styles.css        # CSS dùng chung
-│   │   └── user
-│   │       └── CheckIn.vue       # Giao diện chính để điểm danh
-│   └── vite.config.js            # Cấu hình đóng gói Frontend bằng Vite
-├── ke_hoach_trien_khai.md        # Lập kế hoạch các sprint phát triển
-├── nginx
-│   ├── Dockerfile                # File build image Nginx Gateway
+│   │   │   │   ├── AttendanceLogs.vue
+│   │   │   │   ├── Dashboard.vue
+│   │   │   │   ├── Login.vue
+│   │   │   │   ├── ManageMembers.vue
+│   │   │   │   ├── RegisterAttendance.vue
+│   │   │   │   └── RegisterSchedule.vue
+│   │   │   ├── RecentActivity.vue
+│   │   │   ├── StatCard.vue
+│   │   │   └── TopHeader.vue
+│   │   ├── App.vue               # Component gốc Vue
+│   │   ├── main.js               # Entrypoint Vue
+│   │   ├── router.js             # Phân luồng các trang (Routing)
+│   │   ├── shared                # Thành phần dùng chung
+│   │   │   ├── api.js            # Cấu hình Axios gọi backend
+│   │   │   ├── dateUtils.js
+│   │   │   └── styles.css
+│   │   └── user                  # Giao diện dành cho Sinh viên
+│   │       └── CheckIn.vue
+│   └── vite.config.js            # Cấu hình Vite Build Tool
+├── IAILogo                       # Logo nhóm/phòng lab
+│   └── 545025868_766707732889973_7037884286218005673_n.jpg
+├── ke_hoach_trien_khai.md        # Kế hoạch dự án
+├── local_backups                 # Thư mục map với container Backup
+├── nginx                         # Chứa cấu hình Nginx Gateway
+│   ├── Dockerfile
 │   └── nginx.conf                # Cấu hình Reverse Proxy
-├── README.md                     # File mô tả tổng quan dự án
-├── report
-│   ├── out                       # Chứa các file tạm biên dịch LaTeX
-│   └── report.tex                # Mã nguồn gốc báo cáo LaTeX
-├── todo.txt                      # Các công việc cần làm
-├── uml
-│   ├── activity_diem_danh.png    # Render sơ đồ hoạt động
-│   ├── activity_diem_danh.puml   # Mã nguồn PlantUML Activity
-│   ├── component.png             # Render sơ đồ kiến trúc
-│   ├── component.puml            # Mã nguồn PlantUML Component
-│   ├── deployment.png            # Render sơ đồ triển khai
-│   ├── deployment.puml           # Mã nguồn PlantUML Deployment
-│   ├── sequency.png              # Render sơ đồ tuần tự
-│   ├── sequency.puml             # Mã nguồn PlantUML Sequence
-│   ├── usecase.png               # Render sơ đồ Use Case
-│   ├── usecase.puml              # Mã nguồn PlantUML Use Case
-│   └── yeu_cau_can_tuan_thu.md   # Yêu cầu kỹ thuật dự án
-└── worker
-    ├── Dockerfile                # File build image Docker cho Worker
-    ├── requirements.txt          # Thư viện Python AI (deepface, tf, opencv)
+├── README.md                     # File mô tả tổng quát dự án
+├── report                        # Thư mục chứa Báo cáo LaTeX
+│   ├── out                       # Thư mục chứa file tạm khi build PDF
+│   │   └── report
+│   │       ├── pdflatex60265.fls
+│   │       ├── report.aux
+│   │       ├── report.fdb_latexmk
+│   │       ├── report.fls
+│   │       ├── report.lof
+│   │       ├── report.log
+│   │       ├── report.lot
+│   │       ├── report.out
+│   │       ├── report.pdf
+│   │       ├── report.synctex.gz
+│   │       └── report.toc
+│   ├── report.pdf                # Báo cáo file PDF hoàn chỉnh
+│   └── report.tex                # Source code báo cáo LaTeX
+├── todo.txt                      # Danh sách việc cần làm
+├── uml                           # Thư mục chứa sơ đồ kiến trúc
+│   ├── activity_diem_danh.png    # Sơ đồ hoạt động Check-in
+│   ├── activity_diem_danh.puml
+│   ├── component.png             # Sơ đồ Component
+│   ├── component.puml
+│   ├── csdl.png                  # Sơ đồ ERD Cơ sở dữ liệu
+│   ├── csdl.puml
+│   ├── deployment.png            # Sơ đồ triển khai Docker
+│   ├── deployment.puml
+│   ├── sequency.png              # Sơ đồ tuần tự gọi API
+│   ├── sequency.puml
+│   ├── usecase.png               # Sơ đồ Use Case
+│   ├── usecase.puml
+│   └── yeu_cau_can_tuan_thu.md
+└── worker                        # Thư mục chứa mã nguồn AI Worker
+    ├── Dockerfile                # Cấu hình build Docker cho Worker
+    ├── requirements.txt          # Thư viện AI (DeepFace, OpenCV...)
     └── src
-        ├── celery_app.py         # Khởi tạo kết nối Celery và Redis
-        ├── face_engine.py        # Logic trích xuất AI khuôn mặt
-        ├── __init__.py           # Khởi tạo module src worker
-        └── tasks.py              # Các hàm chạy nền bất đồng bộ
+        ├── celery_app.py         # Khởi tạo Celery
+        ├── face_engine.py        # Module xử lý AI (Trích xuất Vector)
+        ├── __init__.py
+        └── tasks.py              # Các Background Jobs chạy ngầm
+
+29 directories, 108 files
 ```
-
----
-
-## Hướng Dẫn Cài Đặt & Chạy Dự Án
-
-### 1. Yêu Cầu Hệ Thống
-- Đã cài đặt **Docker** và **Docker Compose**.
-- Cổng (Port) khả dụng: `8080` (Web), `8000` (API), `3306/3307` (MySQL), `6333` (Qdrant), `6379` (Redis), `9000/9001` (MinIO).
-
-### 2. Khởi Tạo Cấu Hình
-Hệ thống sử dụng các thông số bảo mật từ file `.env`. Bạn cần copy file mẫu ra môi trường thực:
-```bash
-cp .env.example .env
-```
-*(Lưu ý: Mặc định MySQL trong `.env.example` map ra cổng `3307` để tránh đụng độ với MySQL có sẵn ở máy bạn. Hãy mở file `.env` để kiểm tra lại các thông số `FACE_MATCH_THRESHOLD` hay `DEEPFACE_MODEL_NAME` nếu muốn tinh chỉnh).*
-
-### 3. Build & Khởi Chạy
-Dùng một lệnh duy nhất để build và run toàn bộ hệ thống (lần đầu sẽ mất thời gian để tải các thư viện AI):
-```bash
-# Build các image (Frontend, Backend, Worker, Nginx)
-docker compose build
-
-# Khởi chạy toàn bộ hệ thống dưới background (-d)
-docker compose up -d
-```
-
-### 4. Truy Cập Hệ Thống
-Sau khi các container chạy lên (mất khoảng 1-2 phút để Worker khởi động AI model), bạn có thể truy cập:
-
-- **Giao diện Web (Frontend)**: http://localhost:8080
-- **API Docs (Swagger)**: http://localhost:8000/docs
-- **MinIO Console**: http://localhost:9001 *(Sử dụng `MINIO_ROOT_USER` / `PASSWORD` trong file `.env` để login)*
-
-### 5. Theo Dõi Log Hệ Thống (Gỡ Lỗi)
-Mọi xử lý nhận diện AI đều diễn ra ở Worker. Để theo dõi trực tiếp các cờ QA (Quality Assurance) hay lỗi nhận diện:
-```bash
-docker compose logs -f worker
-```
-Hoặc xem toàn bộ log của tất cả services:
-```bash
-docker compose logs -f
-```
-
 ---
 
 ## Thông Tin Nhóm Phát Triển
@@ -200,33 +193,116 @@ docker compose logs -f
 | 4 | 24022394 | **Nguyễn Đức Mạnh** | Frontend Developer (Vue3, Dashboard) |
 
 
-MinIO Storage: http://localhost:9001
 
-## Cơ chế Backup & Đồng bộ Remote S3
-
-Hệ thống tích hợp sẵn service `backup` chạy ngầm, tự động sao lưu dữ liệu và đồng bộ lên nền tảng Remote S3 (như AWS S3, Cloudflare R2, v.v.) để đảm bảo an toàn tuyệt đối.
-
-### 1. Cấu hình Remote S3
-Mở file `.env` và cập nhật các thông số sau để kích hoạt đồng bộ đám mây:
-```env
-REMOTE_S3_URL=https://s3.amazonaws.com
-REMOTE_S3_ACCESS_KEY=your_aws_access_key
-REMOTE_S3_SECRET_KEY=your_aws_secret_key
-REMOTE_S3_BUCKET=your_backup_bucket
-```
-
-### 2. Các dữ liệu được Backup
-* **MySQL**: Tự động export ra file `.sql` định kỳ (mặc định 24h).
-* **Qdrant**: Tự động tạo và tải về bản snapshot của vector database.
-* **Tài liệu & Ảnh gốc**: Đồng bộ toàn bộ kho ảnh nhận diện từ MinIO local lên bucket của Remote S3.
-
-### 3. Cách theo dõi tiến trình
-Bạn có thể xem log realtime của quá trình backup bằng lệnh:
-```bash
-docker compose logs -f backup
-```
-Dữ liệu tại local có thể xem trực tiếp qua giao diện MinIO Console ở cổng `9001` (vào bucket `backups`).
 
 ---
-> **Lưu ý QA (Quality Assurance)**: Hệ thống được thiết kế với cơ chế Fallback nghiêm ngặt. Nếu ảnh chụp quá tối, mờ, hoặc không nhận diện được rõ khuôn mặt (Threshold < 0.68), Worker sẽ tự động bắn cờ `WARNING/FAIL` và yêu cầu người dùng thử lại để đảm bảo không xảy ra hiện tượng **nhận diện nhầm người khác (0% False Positive)**.
 
+---
+
+## Hướng Dẫn Cài Đặt & Chạy Dự Án (Step-by-Step)
+
+Dự án được đóng gói 100% bằng Docker để đảm bảo tính nhất quán trên mọi môi trường. Bạn không cần phải cài đặt thủ công Python, Node.js, hay các Database.
+
+### Bước 1: Yêu cầu chuẩn bị (Prerequisites)
+1. **Docker Desktop** (trên Windows/Mac) hoặc **Docker Engine & Docker Compose** (trên Linux).
+2. Tối thiểu **4GB RAM trống** (để nạp Model AI Facenet512 vào bộ nhớ của Worker).
+3. Đảm bảo các cổng (port) sau trên máy của bạn chưa bị phần mềm khác chiếm dụng:
+   - `8080` (Nginx/Frontend)
+   - `8000` (FastAPI Backend)
+   - `3307` (MySQL - *Map từ 3306 bên trong container ra ngoài*)
+   - `6333` (Qdrant Vector DB)
+   - `6379` (Redis)
+   - `9000 / 9001` (MinIO Object Storage)
+
+### Bước 2: Clone dự án và thiết lập môi trường
+Mở Terminal / Command Prompt và chạy lệnh sau:
+```bash
+# 1. Clone source code từ GitHub (nếu bạn chưa clone)
+# git clone <đường-dẫn-repo-của-bạn>
+# cd BTL-2526II_AIT3004_2-smart_attendance_system
+
+# 2. Khởi tạo file cấu hình môi trường (.env)
+cp .env.example .env
+```
+*Giải thích:* File `.env` chứa toàn bộ cấu hình lõi (Database password, JWT Secret Key, ngưỡng nhận diện AI `FACE_MATCH_THRESHOLD`...). Bạn có thể mở file này lên để tham khảo hoặc thay đổi mật khẩu nếu muốn triển khai lên server thực tế.
+
+### Bước 3: Khởi chạy toàn bộ hệ thống
+Chạy lệnh duy nhất sau để Docker tự động tải, cài đặt các thư viện và khởi động 8 containers:
+```bash
+# Build và chạy ngầm (-d) toàn bộ hệ thống
+docker compose up --build -d
+```
+⏳ *Lưu ý quan trọng:* Trong **lần chạy đầu tiên**, Docker sẽ phải tải các thư viện AI nặng (TensorFlow, OpenCV) và tải trọng số mô hình Facenet512 (~150MB) từ internet về. Việc này có thể mất từ 5-10 phút tùy tốc độ mạng. Ở các lần chạy sau, hệ thống sẽ khởi động thần tốc trong chưa tới 10 giây.
+
+### Bước 4: Kiểm tra trạng thái hệ thống
+Bạn gõ lệnh sau để đảm bảo tất cả 8 containers (bao gồm backend, worker, nginx, mysql, qdrant, redis, minio, backup) đều đang ở trạng thái `Up` (Màu xanh / Đang chạy):
+```bash
+docker compose ps
+```
+
+### Bước 5: Truy cập và Sử dụng
+Sau khi hệ thống khởi động thành công, hãy mở trình duyệt web và truy cập:
+
+1. **Giao diện Người dùng & Admin (Frontend):** 
+   [http://localhost:8080](http://localhost:8080)
+   *Tài khoản Admin mặc định:* Xem hoặc sửa thông tin đăng nhập trong file `.env` mục `ADMIN_USERNAME` / `ADMIN_PASSWORD`.
+
+2. **Giao diện API Docs (Backend Swagger UI):** 
+   [http://localhost:8000/docs](http://localhost:8000/docs)
+   *Nơi dành cho Developer để test thử các API Backend độc lập.*
+
+3. **Kho ảnh thực tế (MinIO Console):** 
+   [http://localhost:9001](http://localhost:9001)
+   *Tài khoản đăng nhập mặc định:* Lấy từ `MINIO_ROOT_USER` và `MINIO_ROOT_PASSWORD` trong file `.env`. (Đây là nơi chứa toàn bộ ảnh sinh viên upload lên, được quản lý như Google Drive).
+
+### Bước 6: Theo dõi và Khắc phục lỗi (Troubleshooting)
+Bởi vì quá trình xử lý AI (trích xuất khuôn mặt) diễn ra âm thầm ở Background Worker, nếu bạn thấy hệ thống báo "Không nhận ra khuôn mặt" trên UI, hãy xem trực tiếp log của Worker để biết lý do:
+```bash
+# Xem riêng log của luồng AI (DeepFace / Celery) để kiểm tra Quality Assurance
+docker compose logs -f worker
+
+# Xem riêng log của Backend API
+docker compose logs -f backend
+
+# Xem log của toàn bộ 8 services
+docker compose logs -f
+```
+
+### Bước 7: Dọn dẹp / Tắt hệ thống
+Khi không làm việc nữa, bạn có thể tắt toàn bộ hệ thống để giải phóng RAM và CPU:
+```bash
+# Tắt hệ thống nhưng giữ lại TOÀN BỘ dữ liệu trong Database và MinIO
+docker compose down
+
+# XÓA HỆ THỐNG VÀ XÓA SẠCH DỮ LIỆU ĐÃ TẠO (Cẩn trọng trước khi dùng!)
+docker compose down -v
+```
+
+---
+
+## Hình Ảnh Thực Tế & Thiết Kế Kiến Trúc
+
+### 1. Giao Diện (Demo)
+
+**Giao diện đăng nhập Admin an toàn:**
+![Admin Login](./demo/dang_nhap_admin.png)
+
+**Bảng điều khiển Thống kê Điểm danh (Realtime):**
+![Dashboard](./demo/dashbroad.png)
+
+**Giao diện Sinh viên Check-in / Đăng ký Khuôn mặt:**
+![Check-in](./demo/dang_ki_diem_danh.png)
+
+### 2. Sơ Đồ Thiết Kế Hệ Thống (UML)
+
+**Sơ đồ triển khai Microservices (Deployment):**
+![Deployment](./uml/deployment.png)
+
+**Sơ đồ luồng gọi API và AI Worker (Sequence):**
+![Sequence](./uml/sequency.png)
+
+**Sơ đồ luồng Điểm danh 1-1 (Activity):**
+![Activity](./uml/activity_diem_danh.png)
+
+**Sơ đồ Cơ sở dữ liệu (ERD):**
+![ERD](./uml/csdl.png)

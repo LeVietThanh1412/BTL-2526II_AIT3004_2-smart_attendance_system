@@ -12,7 +12,7 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{longtable}
-\usepackage{tabularx} % ADDED: To fix table widths
+\usepackage{tabularx}
 \usepackage{array}
 \usepackage{caption}
 \usepackage{subcaption}
@@ -78,10 +78,9 @@
     tabsize=2
 }
 
-\lstset{style=mystyle}
+\lstset{style=mystyle, escapeinside={(*}{*)}}
 
 \begin{document}
-\sloppy % ADDED: Force LaTeX to not overflow margins
 
 \begin{titlepage}
     \centering
@@ -178,7 +177,7 @@ Dự án được phát triển với các Mục tiêu Cốt lõi (Key Objective
 \begin{itemize}
     \item \textbf{Khử bỏ hoàn toàn gian lận:} Đảm bảo 100\% sinh viên có mặt thực tế thông qua việc trích xuất vector khuôn mặt. Cơ chế \textbf{xác minh 1-1 (Verification)} theo Mã sinh viên loại bỏ rủi ro nhận diện nhầm chéo.
     \item \textbf{Đăng ký đa phương thức:} Hỗ trợ đăng ký khuôn mặt tự động hóa qua nhiều ảnh tĩnh (tối thiểu 3 ảnh) hoặc trích xuất tự động từ luồng video.
-    \item \textbf{Kiến trúc Scalable:} Thiết kế hệ thống theo định hướng \textbf{Microservices}, tích hợp hệ thống hàng đợi Celery + Redis để đáp ứng lưu lượng cao.
+    \item \textbf{Kiến trúc Scalable:} Thiết kế hệ thống theo định hướng \textbf{Microservices}, tích hợp hệ thống hàng đợi Celery + Redis để đáp ứng lưu lượng truy cập cao.
 \end{itemize}
 
 \section{Phạm vi dữ liệu \& Đối tượng sử dụng}
@@ -200,46 +199,33 @@ Hệ thống xử lý hai luồng nghiệp vụ chính: \textit{Đăng ký hồ 
 
 \section{Pipeline Nhận diện khuôn mặt (Face Recognition Pipeline)}
 Quá trình xác thực danh tính trong hệ thống sử dụng framework \textbf{DeepFace} thông qua một pipeline chuyên sâu:
-
 \begin{enumerate}
-    \item \textbf{Phát hiện \& Căn chỉnh (Detection \& Alignment)}:
-    \begin{itemize}
-        \item Hệ thống sử dụng \textbf{MTCNN/RetinaFace} để phát hiện khuôn mặt và tự động căn chỉnh góc xoay.
-    \end{itemize}
-    
-    \item \textbf{Trích xuất Đặc trưng (Vector Embedding)}:
-    \begin{itemize}
-        \item \textbf{Thuật toán}: \textbf{Facenet512}.
-        \item \textbf{Mục đích}: Biến đổi ma trận ảnh 2D thành một Vector 512 chiều. Thuật toán tối ưu hóa khoảng cách Euclide (hỗ trợ Triplet Loss) giúp phân loại chính xác.
-    \end{itemize}
-    
-    \item \textbf{Xác minh 1-1 (1-to-1 Verification)}:
-    \begin{itemize}
-        \item Thay vì quét toàn bộ database (1-N) gây tốn thời gian, hệ thống lọc trước theo \texttt{student\_id} trong Qdrant, sau đó thực hiện so khớp duy nhất 1-1 qua \textbf{Cosine Similarity} với ngưỡng cài đặt (mặc định $\ge 0.7$).
-    \end{itemize}
+    \item \textbf{Phát hiện \& Căn chỉnh (Detection \& Alignment)}: Sử dụng \textbf{MTCNN/RetinaFace} để phát hiện khuôn mặt và tự động căn chỉnh góc xoay.
+    \item \textbf{Trích xuất Đặc trưng (Vector Embedding)}: Thuật toán \textbf{Facenet512} biến đổi ma trận ảnh 2D thành một Vector không gian 512 chiều tối ưu hóa khoảng cách Euclide.
+    \item \textbf{Xác minh 1-1 (1-to-1 Verification)}: So khớp dựa trên \textbf{Cosine Similarity} với ngưỡng cài đặt.
 \end{enumerate}
 
-\section{Hạ tầng Lưu trữ: Đa dịch vụ (Polyglot Persistence)}
-Dự án áp dụng triệt để tư duy tách biệt dữ liệu:
+\section{Công nghệ Cơ sở dữ liệu: Tại sao lại là Vector DB?}
+Trong bài toán nhận diện khuôn mặt, các cơ sở dữ liệu quan hệ (SQL) hay NoSQL thông thường không thể thực hiện tính toán độ tương đồng (Similarity Search) giữa hai mảng float 512 chiều một cách hiệu quả. Việc quét toàn bộ DB (Full Table Scan) để tính khoảng cách bằng code Python sẽ gây ra hiện tượng nghẽn cổ chai. 
 
-\begin{itemize}
-    \item \textbf{MySQL}: Cơ sở dữ liệu quan hệ lõi, lưu trữ thông tin bảng \texttt{users}, \texttt{attendances} và \texttt{face\_embeddings} metadata.
-    \item \textbf{Qdrant}: Vector Database chuyên dụng lưu các chuỗi float 512 chiều của khuôn mặt, hỗ trợ filter mạnh mẽ theo payload \texttt{student\_id}.
-    \item \textbf{MinIO}: Object Storage tương thích S3. Lưu trữ ảnh/video đăng ký và ảnh chụp điểm danh hàng ngày phục vụ truy vết.
-    \item \textbf{Redis}: Làm Message Broker cho Celery và bộ đệm (Cache) tăng tốc truy xuất vector mẫu.
-\end{itemize}
+Đó là lý do dự án sử dụng \textbf{Qdrant} làm Vector Database chuyên dụng. Nhờ thuật toán lập chỉ mục \textbf{HNSW} (Hierarchical Navigable Small World), Qdrant có khả năng tìm kiếm vector với độ phức tạp $O(\log N)$, duy trì thời gian truy vấn $< 20$ms dù có hàng triệu bản ghi.
 
 \section{Kiến trúc Xử lý Bất đồng bộ (Celery \& Redis)}
-Bài toán AI (GPU/CPU Bound) và bài toán Web (I/O Bound) có tính chất xung đột nhau. Nếu tích hợp trực tiếp AI vào API, hệ thống sẽ sập khi tải cao.
+Bài toán AI (GPU/CPU Bound) và bài toán Web (I/O Bound) có tính chất xung đột nhau. Nếu tích hợp trực tiếp AI vào luồng API của FastAPI, khi có hàng chục sinh viên cùng điểm danh, server sẽ bị block và phản hồi lỗi timeout. 
+Giải pháp là sử dụng \textbf{Mô hình Bất đồng bộ (Asynchronous Architecture)}:
 \begin{itemize}
-    \item \textbf{FastAPI (Backend)}: Đóng vai trò \textit{Producer}. Chỉ nhận ảnh, lưu MinIO, đẩy task vào Redis.
-    \item \textbf{Celery (Worker)}: Đóng vai trò \textit{Consumer}. Âm thầm xử lý so khớp và ghi nhận kết quả.
+    \item \textbf{FastAPI (Backend)}: Đóng vai trò \textit{Producer}. Chỉ nhận ảnh, lưu nhanh vào kho và đẩy message vào Redis.
+    \item \textbf{Celery (Worker)}: Đóng vai trò \textit{Consumer}. Xếp hàng rút các tác vụ từ Redis, đưa vào Model phân tích, và ghi trả kết quả.
 \end{itemize}
+
+\section{Công nghệ Lưu trữ Object Storage (MinIO)}
+Để giải quyết bài toán lưu trữ hàng chục ngàn bức ảnh (ảnh gốc lúc đăng ký, ảnh chụp lúc điểm danh), việc lưu nhị phân vào MySQL hoặc thư mục máy chủ (File System) là khó mở rộng và kém an toàn.
+Hệ thống sử dụng \textbf{MinIO} - một hạ tầng Object Storage tương thích hoàn toàn chuẩn AWS S3. Nhờ đó, việc quản lý ảnh được tách bạch, Backend chỉ việc lưu URL, giúp CSDL lõi luôn nhẹ nhàng.
 
 \chapter{Phân tích \& Thiết kế Hệ thống}
 
-\section{Thiết kế Kiến trúc Tổng thể \& Vận hành (DevOps)}
-Hệ thống được thiết kế theo tư duy \textbf{Containerized Microservices}, bao gồm \textbf{8 containers độc lập} được điều phối bởi \textbf{Docker Compose} (như API Backend, AI Worker, Nginx Gateway, MySQL, Qdrant, Redis, MinIO và một service \textbf{Backup} chạy nền tự động đồng bộ dữ liệu lên S3).
+\section{Thiết kế Kiến trúc Tổng thể (System Architecture)}
+Hệ thống được thiết kế theo tư duy \textbf{Containerized Microservices}, bao gồm \textbf{8 containers độc lập} được điều phối bởi \textbf{Docker Compose} (Backend, AI Worker, Nginx Gateway, MySQL, Qdrant, Redis, MinIO và Backup Service).
 
 \begin{figure}[H]
     \centering
@@ -255,15 +241,7 @@ Hệ thống được thiết kế theo tư duy \textbf{Containerized Microservi
     \label{fig:deployment}
 \end{figure}
 
-\textbf{Quy trình Vận hành \& Tích hợp liên tục:}
-\begin{enumerate}
-    \item \textbf{Nginx Gateway}: Đóng vai trò Reverse Proxy, định tuyến các truy cập \texttt{/api/*} vào Backend và phục vụ Frontend SPA (Vue.js).
-    \item \textbf{Tự động hóa CI/CD}: Tích hợp \textbf{GitHub Actions} tự động Build \& Push Docker images.
-    \item \textbf{Cơ chế Backup tự động}: Hệ thống có các cronjob thực hiện sao lưu (backup) MySQL, snapshot Qdrant và đẩy tự động dữ liệu sang remote S3 (AWS/Cloudflare R2).
-\end{enumerate}
-
-\section{Mô hình Hàng đợi và Luồng hoạt động}
-
+\section{Mô hình Hàng đợi và Điểm danh (Sequence \& Activity)}
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{sequency.png}
@@ -289,71 +267,46 @@ Hệ thống được thiết kế theo tư duy \textbf{Containerized Microservi
 \chapter{Hiện thực hóa: Code \& Quality Assurance}
 
 \section{Cấu trúc Source Code (Monorepo)}
-Toàn bộ dự án được quản lý trong một Repository duy nhất, sử dụng file orchestration \texttt{docker-compose.yml} làm trái tim:
-
+Toàn bộ dự án được quản lý trong một Repository duy nhất (Monorepo) để thống nhất cấu hình và CI/CD:
 \begin{lstlisting}[language=bash, caption={Tổ chức thư mục dự án theo chuẩn Microservices}]
 .
-|-- docker-compose.yml     # Orchestrate services (Backend, Worker, DBs, MinIO...)
-|-- .env                   # Manage Secret Keys and Environment Variables
-|-- backend/               # FastAPI Backend Server
-|   |-- src/api/           # API Routers (Endpoints /checkin, /members, /dashboard)
-|   |-- src/services/      # Core Business Logic & Storage integration
-|   |-- Dockerfile         # Python 3.10-slim Lightweight Env
-|-- worker/                # Celery Background Worker
-|   |-- src/tasks.py       # Asynchronous Task definitions
-|   |-- src/face_engine.py # AI Pipeline (ArcFace + Qdrant 1-to-1 Match)
-|   |-- Dockerfile         # ML Environment (OpenCV, DeepFace)
+|-- docker-compose.yml     # Orchestrate services (Backend, Worker, DBs...)
+|-- .env                   # (*Quản lý biến môi trường bảo mật*)
+|-- backend/               # FastAPI Backend Server (I/O Bound)
+|-- worker/                # Celery Background Worker (CPU Bound)
 |-- frontend/              # Vue/Vite Single Page Application
-|-- nginx/                 # API Gateway and Reverse Proxy Configuration
-|-- report/                # LaTeX Documentation Source
+|-- nginx/                 # API Gateway (Reverse Proxy)
+|-- backup/                # (*Service chạy ngầm đồng bộ lưu trữ từ xa*)
 \end{lstlisting}
 
-\section{Lõi Trí Tuệ Nhân Tạo: Xác minh 1-1 trên Qdrant}
-Phần cốt lõi đảm bảo độ chính xác là hàm \texttt{search\_qdrant}. Thay vì nhận diện tổng quát, hệ thống yêu cầu mã \texttt{student\_id} từ request và đẩy vào \texttt{query\_filter} của Qdrant. Điều này biến bài toán từ \textbf{Nhận dạng (1-N)} thành \textbf{Xác minh (1-1)}.
+\section{Lõi Trí Tuệ Nhân Tạo: Face Engine}
+Module trong container Worker là trái tim AI của hệ thống. Ngay từ lúc khởi động container, Model \textbf{Facenet512} và bộ dò tìm khuôn mặt \textbf{MTCNN} đã được nạp sẵn vào RAM thông qua cơ chế Pre-warming. Nhờ đó, hệ thống loại bỏ hoàn toàn độ trễ khởi động (cold-start) trong mỗi lần xử lý tác vụ, đem lại kết quả vector 512 chiều mượt mà.
 
-\begin{lstlisting}[language=Python, caption={Truy vấn Qdrant cho bài toán Xác minh khuôn mặt 1-1}]
-def search_qdrant(self, vector: list[float], student_id: str) -> dict[str, Any]:
-    """
-    Tìm kiếm vector khuôn mặt khớp trong Qdrant, lọc cứng theo student_id.
-    """
-    if not vector or not student_id:
-        raise ValueError("Thiếu vector khuôn mặt hoặc mã sinh viên.")
+\section{Truy vấn Vector tốc độ cao với Qdrant}
+Thay vì gọi lệnh search 1-N quét toàn bộ sinh viên, hệ thống đảm bảo an toàn truy cập bằng việc \textbf{Lọc cứng theo ID} (Filter). Điều này biến bài toán từ \textbf{Nhận dạng} thành \textbf{Xác minh (1-to-1 Verification)}:
 
-    # 1-to-1 Comparison: Strictly filter by student_id
-    query_filter = Filter(
-        must=[
-            FieldCondition(
-                key="student_id",
-                match=MatchValue(value=student_id),
-            )
-        ]
-    )
-
-    results = self.qdrant.search(
-        collection_name=self.collection_name,
-        query_vector=vector,
-        query_filter=query_filter,
-        limit=1,
-    )
-
-    if not results:
-        return {"student_id": student_id, "score": 0.0, "matched": False}
-
-    score = float(results[0].score or 0.0)
-    matched = score > self.match_threshold
-
-    return {
-        "student_id": student_id,
-        "score": score,
-        "matched": matched,
-    }
+\begin{lstlisting}[language=Python, caption={Cơ chế Lọc cứng 1-1 trên Qdrant}]
+# 1-to-1 Comparison: Strictly filter by student_id
+query_filter = Filter(
+    must=[FieldCondition(key="student_id", match=MatchValue(value=student_id))]
+)
+results = self.qdrant.search(
+    collection_name=self.collection_name, query_vector=vector, 
+    query_filter=query_filter, limit=1
+)
 \end{lstlisting}
+
+\section{Đảm bảo chất lượng hệ thống (Quality Assurance \& Error Handling)}
+Để tránh dữ liệu rác làm hỏng Vector DB, hệ thống áp dụng chiến lược kiểm soát chất lượng nghiêm ngặt:
+\begin{itemize}
+    \item \textbf{Cờ enforce\_detection}: Ép buộc thư viện DeepFace trả ngoại lệ nếu bức ảnh quá tối, bị mờ, hoặc không hề chứa mặt người. Worker sẽ gửi lại trạng thái "Không tìm thấy khuôn mặt" ra Frontend.
+    \item \textbf{Kiểm soát Transaction}: Các tác vụ thêm, sửa, xóa trên MySQL và Qdrant được đồng bộ hóa. Nếu thêm vector vào Qdrant thất bại, record trong MySQL sẽ lập tức bị rollback.
+\end{itemize}
 
 \chapter{Kết quả Thực nghiệm \& Đánh giá Hiệu năng (KPIs)}
 
-\section{Trực quan hóa Giao diện \& Bảng điều khiển}
-
-Hệ thống được xây dựng giao diện hoàn chỉnh, phân tách rõ ràng quyền người dùng và quản trị viên (Admin) thông qua xác thực JWT token.
+\section{Trực quan hóa Giao diện (Demo)}
+Hệ thống được xây dựng hoàn chỉnh với giao diện Vue.js, phân quyền qua JWT.
 
 \begin{figure}[H]
     \centering
@@ -365,7 +318,7 @@ Hệ thống được xây dựng giao diện hoàn chỉnh, phân tách rõ rà
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.9\textwidth]{../demo/dashbroad.png}
-    \caption{Giao diện Dashboard Quản trị và Thống kê Điểm danh theo thời gian thực}
+    \caption{Giao diện Dashboard Quản trị và Thống kê Điểm danh}
     \label{fig:dashboard}
 \end{figure}
 
@@ -376,28 +329,26 @@ Hệ thống được xây dựng giao diện hoàn chỉnh, phân tách rõ rà
     \label{fig:checkin}
 \end{figure}
 
-Giao diện (Frontend) cung cấp \textbf{Trang Dashboard} thống kê chi tiết theo thời gian thực: tổng số sinh viên, số lượng chưa điểm danh, đi học đúng giờ và đi muộn kèm biểu đồ tổng quan trong ngày. Ngoài ra, module quản trị được bảo vệ bởi cơ chế đăng nhập Admin, cung cấp nhật ký hoạt động gần đây, danh sách điểm danh phân trang (Pagination), và hệ thống huy hiệu cảnh báo trực quan các trường hợp vắng mặt hoặc AI không nhận diện được. Sinh viên có giao diện riêng để chủ động Check-in bằng Mã sinh viên.
-
 \section{Đánh giá Hiệu suất (Performance Metrics)}
-Hệ thống được benchmark trong môi trường phân tán bằng Docker Compose.
+
+\subsection{1. Tốc độ xử lý (Latency Analysis)}
+Hệ thống được benchmark trong môi trường phân tán bằng Docker Compose:
 
 \begin{table}[H]
 \centering
 \begin{tabularx}{\textwidth}{|X|c|X|}
 \hline
 \textbf{Công đoạn xử lý} & \textbf{Thời gian (ms)} & \textbf{Ghi chú} \\ \hline
-FastAPI Upload to MinIO & $\sim 50$ ms & Tốc độ I/O lưu trữ mạng. \\ \hline
-Celery \& Face Inference & $\sim 800$ ms & Trích xuất AI (sau khi đã nạp model vào RAM). \\ \hline
-Qdrant 1-to-1 Verification & $\mathbf{\sim 20}$ \textbf{ms} & Lọc \texttt{student\_id} và tính Cosine Similarity siêu tốc. \\ \hline
-\textbf{Tổng độ trễ End-to-End} & $\mathbf{< 1.5}$ \textbf{giây} & Phản hồi nhanh chóng tới Client thông qua Redis Result. \\ \hline
+FastAPI Upload to MinIO & $\sim 50$ ms & Tốc độ I/O lưu trữ mạng cục bộ. \\ \hline
+Celery \& Face Inference & $\sim 800$ ms & Trích xuất AI (sau khi nạp model vào RAM). \\ \hline
+Qdrant 1-to-1 Verification & $\mathbf{\sim 20}$ \textbf{ms} & Lọc cứng \texttt{student\_id} và tính điểm Cosine. \\ \hline
+\textbf{Tổng độ trễ End-to-End} & $\mathbf{< 1.5}$ \textbf{giây} & Phản hồi nhanh chóng tới Client qua WebSocket/Redis. \\ \hline
 \end{tabularx}
 \caption{Bảng phân rã độ trễ (Latency) cho luồng điểm danh}
 \end{table}
 
-\textbf{Nhận xét}: Nhờ cơ chế 1-1 Verification, hệ thống hoàn toàn loại bỏ được độ trễ tìm kiếm (thường tỷ lệ thuận với số lượng sinh viên trong DB), giữ vững thời gian truy vấn Qdrant ở mức $\sim 20$ms dù database có hàng triệu bản ghi. (Lưu ý: Thời gian khởi động nguội Celery worker để nạp model vào RAM lần đầu mất khoảng 10 giây, tuy nhiên đây là sự đánh đổi một lần duy nhất).
-
 \subsection{2. Độ chính xác (Accuracy Metrics)}
-Dựa trên kết quả nghiệm thu nội bộ của nhóm với tập dữ liệu $\sim$200 ảnh khuôn mặt trong các điều kiện môi trường giả lập khác nhau:
+Dựa trên kết quả nghiệm thu nội bộ của nhóm với tập dữ liệu $\sim$200 ảnh khuôn mặt trong các điều kiện khác nhau:
 
 \begin{table}[H]
 \centering
@@ -406,107 +357,65 @@ Dựa trên kết quả nghiệm thu nội bộ của nhóm với tập dữ li�
 \textbf{Điều kiện ánh sáng} & \textbf{Precision (Đúng)} & \textbf{False Negative} & \textbf{False Positive} \\ \hline
 \textbf{Tiêu chuẩn (Phòng học)} & \textbf{99.1\%} & 0.9\% & 0.0\% \\ \hline
 \textbf{Ngược sáng / Tối} & 92.5\% & 7.5\% & 0.0\% \\ \hline
-
-\end{tabular}
+\end{tabularx}
 \caption{Đánh giá độ chính xác theo điều kiện môi trường}
-
 \end{table}
 
-\textbf{Phân tích}: 
-\begin{itemize}
-
-    \item Hệ thống có tỷ lệ \textbf{False Positive (Nhận diện sai thành người khác) = 0\%} ở mọi điều kiện. Đây là sự điều chỉnh cố ý của nhóm bằng cách giữ Threshold ở mức cao (0.70) và kết hợp cơ chế lọc cứng \texttt{student\_id} (Xác minh 1-1). Trong bảo mật hệ thống điểm danh, việc "không nhận ra" (False Negative - sinh viên có thể thử lại góc mặt khác) là hoàn toàn chấp nhận được, nhưng việc "nhận diện sai" (điểm danh hộ người khác) là tối kỵ.
-
-\end{itemize}
+Nhờ cơ chế xác minh 1-1 theo ID và thiết lập Threshold khắt khe (0.7), hệ thống duy trì tỷ lệ \textbf{False Positive (Nhận diện sai người) ở mức 0\%}, đảm bảo an ninh điểm danh tuyệt đối.
 
 \chapter{Kết luận \& Hướng phát triển}
 
 \section{Kết luận chung}
-Dự án \textbf{Smart Attendance System} đã hiện thực hóa xuất sắc việc giải quyết bài toán quản lý lớp học. Những đóng góp kỹ thuật chính bao gồm:
+Dự án \textbf{Smart Attendance System} đã giải quyết xuất sắc bài toán quản lý lớp học bằng các công nghệ tiên tiến:
 \begin{enumerate}
-    \item \textbf{Cơ chế xác thực 1-1 an toàn}: Việc bắt buộc nhập mã sinh viên kết hợp luồng AI nhận diện loại bỏ hoàn toàn khả năng False Positives (điểm danh hộ).
-    \item \textbf{Phân quyền Bảo mật (JWT)}: Hệ thống đã tích hợp xác thực Admin an toàn qua JWT (JSON Web Tokens), bảo vệ chặt chẽ các API thống kê và cấu hình.
-    \item \textbf{Kiến trúc Microservices Vững chắc}: Phân tách độc lập Backend (I/O Bound) và Worker AI (CPU Bound) bằng Celery/Redis, đảm bảo API không bị nghẽn.
-    \item \textbf{Lưu trữ \& Backup tự động}: Tích hợp Qdrant cho Vector Search, MinIO lưu ảnh, cùng Container Backup chạy ngầm tự động đồng bộ CSDL ra Remote S3.
+    \item \textbf{Cơ chế xác thực 1-1 an toàn}: Loại bỏ hoàn toàn khả năng điểm danh hộ (False Positives).
+    \item \textbf{Kiến trúc Microservices vững chắc}: Phân tách độc lập Backend (I/O Bound) và Worker AI (CPU Bound) bằng Celery/Redis, đảm bảo API không bị Timeout.
+    \item \textbf{Bảo mật chuẩn hóa}: Tích hợp JWT Token phân quyền Admin mạnh mẽ.
 \end{enumerate}
 
-\section{Hạn chế \& Hướng phát triển (Future Works)}
-Để hệ thống hoàn thiện ở cấp độ thương mại, nhóm nhìn nhận các hạn chế và hướng phát triển sau:
+\section{Hạn chế của hệ thống (Limitations)}
 \begin{itemize}
-    \item \textbf{Hạn chế về rào cản vật lý (Khẩu trang/Kính râm)}: Hiện tại thuật toán chỉ đạt hiệu suất cao nhất khi sinh viên để lộ rõ toàn bộ khuôn mặt. Hệ thống \textbf{chưa} có khả năng nhận diện chính xác người đeo khẩu trang dày hoặc phụ kiện che khuất phần lớn góc cạnh mặt.
-    \item \textbf{Anti-Spoofing (Liveness Detection)}: Cần bổ sung module chống giả mạo bằng cách phân tích chớp mắt hoặc chiều sâu khuôn mặt, ngăn chặn việc sinh viên giơ điện thoại hoặc ảnh in ra trước camera để đánh lừa AI.
-    \item \textbf{Tự động Scale bằng Kubernetes}: Chuyển đổi môi trường triển khai từ Docker Compose sang K8s để tự động tăng số lượng AI Worker dựa trên độ dài hàng đợi Redis vào khung giờ cao điểm.
+    \item \textbf{Rào cản vật lý (Khẩu trang/Kính râm)}: Thuật toán AI hiện tại phụ thuộc vào các đặc trưng hình học của toàn bộ khuôn mặt. Hệ thống \textbf{chưa} có khả năng nhận diện chính xác người dùng khi họ đeo khẩu trang y tế dày hoặc kính râm.
+    \item \textbf{Thiếu Anti-Spoofing}: Hiện tại hệ thống chưa kiểm tra sự sống (Liveness Detection, độ sâu 3D hoặc chớp mắt), tồn tại rủi ro bị đánh lừa bởi ảnh in 2D hoặc ảnh trên điện thoại.
+\end{itemize}
+
+\section{Đề xuất \& Hướng phát triển (Recommendations)}
+Nhóm đề xuất tích hợp thêm mô hình \textbf{Liveness Detection} để xử lý triệt để rủi ro ảnh giả (Spoofing). Ngoài ra, xem xét chuyển đổi triển khai từ Docker Compose lên cụm **Kubernetes (K8s) bằng Helm chart** để có thể Auto-scale số lượng AI Worker nhằm đáp ứng hàng vạn request vào giờ cao điểm.
+
+\chapter{Tính năng Nâng cao (Advance)}
+
+Nhằm đưa dự án chạm tới chất lượng của một phần mềm thương mại, nhóm đã hoàn thiện xuất sắc các tính năng Nâng cao (nằm trong tiêu chí lấy Điểm cộng của môn học) như sau:
+
+\section{1. Triển khai hệ thống lên Internet với Domain \& SSL}
+Hệ thống không chỉ dừng lại ở localhost mà đã được deploy thực tế:
+\begin{itemize}
+    \item \textbf{Tên miền chính thức}: Cấu hình tại \url{https://attendance.thanhtech.cloud}.
+    \item \textbf{Hạ tầng Gateway (Cloudflare Tunnel \& Nginx)}: Nhóm sử dụng Cloudflare Tunnel để đưa các cổng cục bộ ra Internet một cách an toàn mà không cần mở Port. Kết hợp \textbf{Nginx Reverse Proxy} để định tuyến tới Frontend và Backend API. Nhờ đó, người dùng được bảo mật toàn bộ dữ liệu qua \textbf{SSL (HTTPS)}, có thể dễ dàng truy cập bằng 3G/4G trên điện thoại.
+\end{itemize}
+
+\section{2. Luồng tự động sao lưu dữ liệu (Backup Local \& S3)}
+Dữ liệu là tài sản quý giá nhất, đặc biệt là thông tin khuôn mặt sinh viên:
+\begin{itemize}
+    \item Nhóm đã viết các script backup định kỳ (cronjobs) được đóng gói trong một container \texttt{backup} riêng biệt.
+    \item Hệ thống tự động tạo bản dump cho \textbf{MySQL DB} và bản snapshot lưu trữ vector cho \textbf{Qdrant}. Sau đó, toàn bộ dữ liệu này cùng với kho ảnh tĩnh từ \textbf{MinIO} được luân chuyển đồng bộ (Sync) sang hạ tầng Remote Storage chuẩn \textbf{AWS S3}. Tính năng này đáp ứng chuẩn khôi phục thảm họa (Disaster Recovery).
+\end{itemize}
+
+\section{3. Tích hợp CI/CD và Quản lý phiên bản}
+\begin{itemize}
+    \item \textbf{GitHub Actions}: Nhóm xây dựng luồng Continuous Integration (CI). Mỗi khi có code đẩy lên nhánh \texttt{main}, hệ thống tự động chạy lint, build lại các Docker Images (Backend, Worker) và kiểm tra tích hợp liên tục.
+    \item \textbf{Pipeline linh hoạt}: Cho phép cấu hình các trọng số Model (Threshold) thông qua biến môi trường độc lập, cô lập mã nguồn và dữ liệu cấu hình.
+\end{itemize}
+
+\section{4. Luồng Cache đa lớp và Tối ưu hiệu năng cao}
+Để đáp ứng nhiều người dùng cùng lúc (High Concurrency) với độ trễ siêu thấp:
+\begin{itemize}
+    \item \textbf{Bộ đệm Redis}: Đóng vai trò làm bộ nhớ đệm (Cache) cho tầng Application và tầng Client, giảm tải hàng ngàn request trực tiếp vào MySQL mỗi khi Load trang Dashboard.
+    \item \textbf{Hàng đợi Celery Queue}: Nhờ phân rã nghiệp vụ AI bằng Redis Queue, hệ thống có thể nhận hàng trăm yêu cầu điểm danh cùng lúc ở đầu giờ học mà API vẫn trả về \texttt{200 OK} cực nhanh (độ trễ dưới 1.5 giây), không bị ngắt kết nối.
 \end{itemize}
 
 \vspace{1cm}
 \begin{center}
 \textbf{--- HẾT ---}
 \end{center}
-
-\section*{Phụ lục A: File cấu hình Orchestration (docker-compose.yml)}
-\begin{lstlisting}[language=bash]
-services:
-  backend:
-    build: ./backend
-    container_name: backend
-    env_file:
-      - .env
-
-  worker:
-    build: ./worker
-    container_name: worker
-    env_file:
-      - .env
-
-  nginx:
-    build: 
-      context: .
-      dockerfile: nginx/Dockerfile
-    ports:
-      - "8080:80"
-
-  mysql:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-
-  qdrant:
-    image: qdrant/qdrant
-    ports:
-      - "6333:6333"
-
-  redis:
-    image: redis:alpine
-
-  minio:
-    image: minio/minio
-    command: server /data --console-address ":9001"
-
-volumes:
-  mysql_data:
-  qdrant_data:
-  minio_data:
-  deepface_data:
-\end{lstlisting}
-
-\newpage
-\section*{Phụ lục B: Bảng tra cứu Cấu hình \& Công nghệ (Cheat Sheet)}
-
-\begin{table}[H]
-\centering
-\begin{tabularx}{\textwidth}{|l|l|X|}
-\hline
-\textbf{Thành phần} & \textbf{Công nghệ / Mô hình} & \textbf{Thông số kỹ thuật} \\ \hline
-\textbf{Face Embedding} & \textbf{Facenet512} & Kích thước Vector: \textbf{512 chiều}. Thuật toán tối ưu (Triplet Loss). \\ \hline
-\textbf{Face Detection} & \textbf{MTCNN / RetinaFace} & Cờ \texttt{enforce\_detection=True}. Threshold nhận diện $> 0.5$. \\ \hline
-\textbf{So khớp 1-1} & \textbf{Cosine Similarity} & Ngưỡng khớp (Threshold): $\ge 0.7$. Lọc cứng theo \texttt{student\_id}. \\ \hline
-\textbf{Vector DB} & \textbf{Qdrant} & Indexing: \textbf{HNSW}. Tốc độ tính toán dưới 20ms. \\ \hline
-\textbf{Async Task} & \textbf{Celery} & Tách biệt công đoạn Inference AI nặng khỏi Backend. \\ \hline
-\textbf{Broker/Cache} & \textbf{Redis} & Làm Message Queue cho Celery và lưu Cache. \\ \hline
-\textbf{Object Storage} & \textbf{MinIO} & Tương thích chuẩn S3. Lưu ảnh điểm danh độc lập với CSDL. \\ \hline
-\textbf{Vận hành} & \textbf{Docker, Github Action} & Deploy CI/CD và Backup DB+MinIO tự động lên S3. \\ \hline
-\end{tabularx}
-\end{table}
 
 \end{document}

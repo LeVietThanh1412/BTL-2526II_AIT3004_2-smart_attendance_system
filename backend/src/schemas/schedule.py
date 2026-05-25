@@ -24,6 +24,7 @@ class ScheduleHistoryResponse(BaseModel):
     created_at: datetime
     approved_at: datetime | None
     is_approved: bool
+    is_active: bool
     schedules: List[ScheduleBase]
 
 class ScheduleListUpdate(BaseModel):

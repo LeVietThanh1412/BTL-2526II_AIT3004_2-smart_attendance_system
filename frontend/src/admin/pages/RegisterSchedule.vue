@@ -53,9 +53,10 @@
                 <button class="btn-success" @click="saveSchedule" :disabled="saving">
                   {{ saving ? 'Đang gửi...' : 'Gửi yêu cầu đổi lịch' }}
                 </button>
-                <button v-if="isAdmin" class="btn-primary" @click="approveSchedule" style="margin-top: 20px; margin-left: 10px;">
-                  Duyệt lịch (Admin)
-                </button>
+                <div v-if="isAdmin" style="margin-top: 20px; display: flex; gap: 10px; margin-left: auto;">
+                  <button class="btn-primary" @click="approveSchedule">Duyệt lịch (Admin)</button>
+                  <button class="btn-danger" @click="rejectSchedule">Không duyệt</button>
+                </div>
               </div>
             </div>
 
@@ -83,8 +84,9 @@
                     <span class="history-time">
                       <strong>Gửi lúc:</strong> {{ formatDate(hist.created_at) }}
                     </span>
-                    <span class="badge" :class="hist.is_approved ? 'approved' : 'pending'">
-                      {{ hist.is_approved ? 'Đã duyệt' : 'Chờ duyệt' }}
+                    <span class="badge" 
+                          :class="hist.is_approved ? 'approved' : (hist.is_active ? 'pending' : 'rejected')">
+                      {{ hist.is_approved ? 'Đã duyệt' : (hist.is_active ? 'Chờ duyệt' : 'Bị từ chối / Hủy') }}
                     </span>
                   </div>
                   <div v-if="hist.is_approved && hist.approved_at" style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">
@@ -113,7 +115,7 @@
 import { ref } from 'vue'
 import AdminSidebar from '../AdminSidebar.vue'
 import TopHeader from '../TopHeader.vue'
-import apiClient, { approveStudentSchedule, fetchMembers, fetchScheduleHistory } from '../../shared/api'
+import apiClient, { approveStudentSchedule, rejectStudentSchedule, fetchMembers, fetchScheduleHistory } from '../../shared/api'
 
 const isAdmin = ref(!!localStorage.getItem('adminToken'))
 
@@ -232,8 +234,20 @@ const approveSchedule = async () => {
   try {
     await approveStudentSchedule(studentId.value)
     alert('Duyệt lịch học thành công!')
+    await loadSchedule() // reload lại để cập nhật trạng thái
   } catch (error) {
     alert(error.response?.data?.detail || 'Lỗi khi duyệt lịch.')
+  }
+}
+
+const rejectSchedule = async () => {
+  if (!confirm('Bạn có chắc chắn muốn từ chối yêu cầu đổi lịch này?')) return
+  try {
+    await rejectStudentSchedule(studentId.value)
+    alert('Đã từ chối lịch học!')
+    await loadSchedule()
+  } catch (error) {
+    alert(error.response?.data?.detail || 'Lỗi khi từ chối lịch.')
   }
 }
 </script>
@@ -446,6 +460,25 @@ main.content {
   background-color: #fef9c3;
   color: #92400e;
   border: 1px solid #fde68a;
+}
+
+.badge.rejected {
+  background-color: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background-color: #dc2626;
 }
 
 .day-label {

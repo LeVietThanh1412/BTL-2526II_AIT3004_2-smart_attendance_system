@@ -2,6 +2,7 @@ import logging
 
 from celery.exceptions import TimeoutError as CeleryTimeoutError
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from pydantic import BaseModel
@@ -67,7 +68,7 @@ async def check_in(
     today = datetime.now()
     current_date = today.date()
     current_time = today.time()
-    day_of_week = today.weekday() # 0 is Monday
+    day_of_week = today.weekday()
     
     schedule = db.query(StudentSchedule).filter(
         StudentSchedule.user_id == user.id,
@@ -140,6 +141,23 @@ async def check_in(
     reason = worker_result.get("reason", "")
     message = worker_result.get("message", f"Điểm danh hoàn tất từ camera {camera_id}.")
 
+    def _reject_with_score(error_message: str):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "status": "failed",
+                "student_id": student_id,
+                "match_score": score,
+                "threshold": threshold,
+                "matched": matched,
+                "reason": reason,
+                "message": error_message,
+                "action": "check_in",
+                "shift_start": shift_start_time.strftime("%H:%M"),
+                "shift_end": end_time_of_last_shift.strftime("%H:%M"),
+            },
+        )
+
     # Xác định trạng thái điểm danh
     if matched and status_value == "success":
         status_enum = AttendanceStatus.success
@@ -172,10 +190,7 @@ async def check_in(
 
     # Ràng buộc thời gian hệ thống
     if current_time < time(5, 30):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Hệ thống điểm danh chỉ mở từ 5h30 sáng."
-        )
+        return _reject_with_score("Hệ thống điểm danh chỉ mở từ 5h30 sáng.")
 
     # Lấy bản ghi attendance thành công gần nhất của user hôm nay
     attendance = db.query(Attendance).filter(
@@ -202,16 +217,12 @@ async def check_in(
 
         # Không cho check-in trước giờ mở cổng
         if current_time < checkin_earliest:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Chưa đến giờ học. Ca bắt đầu lúc {shift_start_time.strftime('%H:%M')}, có thể check-in sớm nhất lúc {checkin_earliest.strftime('%H:%M')}."
+            return _reject_with_score(
+                f"Chưa đến giờ học. Ca bắt đầu lúc {shift_start_time.strftime('%H:%M')}, có thể check-in sớm nhất lúc {checkin_earliest.strftime('%H:%M')}."
             )
         # Không cho check-in sau khi ca cuối đã kết thúc
         if current_time > end_time_of_last_shift:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Ca học cuối cùng của bạn đã kết thúc, không thể check-in."
-            )
+            return _reject_with_score("Ca học cuối cùng của bạn đã kết thúc, không thể check-in.")
 
         # Xác định đi muộn
         is_late = current_time > late_threshold

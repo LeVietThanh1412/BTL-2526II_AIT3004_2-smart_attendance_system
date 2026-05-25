@@ -44,6 +44,9 @@
                             <h4>{{ result.userName }}</h4>
                             <p class="result-action-label">{{ result.actionLabel }}</p>
                             <p>{{ result.checkInTime }}</p>
+                            <div v-if="result.accuracyText" class="accuracy-text">
+                                Độ chính xác: <strong>{{ result.accuracyText }}</strong>
+                            </div>
                             <div v-if="result.shiftInfo" class="shift-info">
                                 Ca học: {{ result.shiftInfo }}
                             </div>
@@ -99,6 +102,12 @@ const resultStatusClass = computed(() => {
     if (result.value.isLate) return 'status-late'
     return 'status-ok'
 })
+
+const formatScorePercent = (value) => {
+    const score = Number(value)
+    if (!Number.isFinite(score)) return null
+    return `${(score * 100).toFixed(2)}%`
+}
 
 let videoStream = null
 
@@ -161,6 +170,7 @@ const handleCheckIn = async () => {
         const action = res.action // 'check_in' | 'check_out'
         const isLate = res.is_late === true
         const isError = res.status !== 'success' || !res.matched
+        const accuracyText = formatScorePercent(res.match_score)
 
         // Label hành động
         let actionLabel = ''
@@ -188,6 +198,7 @@ const handleCheckIn = async () => {
                 out: res.check_out_time,
             } : null,
             message: res.message,
+            accuracyText,
         }
 
         // Điểm danh thành công thì có thể xóa trống ô nhập (tùy chọn)
@@ -199,12 +210,14 @@ const handleCheckIn = async () => {
         
         // YÊU CẦU 4: Đọc chi tiết thông báo lỗi từ Backend trả về (Ví dụ: Không tồn tại, Điểm thấp...)
         const backendErrorMessage = err?.response?.data?.message || err?.response?.data?.detail || 'Không thể kết nối máy chủ điểm danh.'
+        const accuracyText = formatScorePercent(err?.response?.data?.match_score)
         
         result.value = {
             userName: 'Điểm danh thất bại',
             checkInTime: `${formatTime(now)} - ${formatShortDate(now)}`,
             statusText: backendErrorMessage, // Hiển thị rõ lỗi cụ thể lên màn hình
             isError: true,
+            accuracyText,
         }
     } finally {
         isProcessing.value = false
@@ -256,6 +269,12 @@ main.content {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+}
+
+.accuracy-text {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #475569;
 }
 
 .card-header h2 {

@@ -1,8 +1,8 @@
 # Fdb version 4
-["pdflatex"] 1779720929.55085 "/mnt/Data1/LeVietThanh1412-Product/BTL-2526II_AIT3004_2-smart_attendance_system/report/report.tex" "out/report/report.pdf" "report" 1779720930.30932 0
-  "../demo/dang_ki_diem_danh.png" 1779640613.04766 101855 9bc191162c9324c81d0576e8fd212e9a ""
+["pdflatex"] 1779721304.26522 "/mnt/Data1/LeVietThanh1412-Product/BTL-2526II_AIT3004_2-smart_attendance_system/report/report.tex" "out/report/report.pdf" "report" 1779721304.93916 0
+  "../demo/dang_ki_diem_danh.png" 1779721256.43813 131394 fbca7bd38306ceb5278731d1e4f85ba5 ""
   "../demo/dang_nhap_admin.png" 1779640623.22549 30714 e940e54b0df54e617dfd8e728e8b37e7 ""
-  "../demo/dashbroad.png" 1779640602.45585 76866 11b131390684c6c41e5174405aed607d ""
+  "../demo/dashbroad.png" 1779721280.32397 81731 5a03d6dc92d0c08651283bb7881aa19f ""
   "../uml/activity_diem_danh.png" 1779460209.95657 27702 be07dceca1ab3835322895dab6548594 ""
   "../uml/component.png" 1779460209.95757 31613 c4bf3383f22613ff0b2a60141f7a5f27 ""
   "../uml/csdl.png" 1779460209.95857 13404 7aeb9998e84826cae79eb4fef0fa4893 ""
@@ -140,11 +140,11 @@
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1775415801 43569 fd570f2fa160877d211e859f687312ba ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1776780282 358575 a84af5c9c27c33f962d16a976cc2d0db ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1776780260 2426816 8f35dbcba6df50fd1eefffcc45b1bbcd ""
-  "out/report/report.aux" 1779720930.23494 9422 9a470398fc858a66ae897ccae14c78e5 "pdflatex"
-  "out/report/report.lof" 1779720930.23694 1354 2662e062db81f3ba7097f12ea33cdf01 "pdflatex"
-  "out/report/report.lot" 1779720930.23694 755 fcbea1b78608e775a1096aee9760c07b "pdflatex"
-  "out/report/report.out" 1779720930.23594 9147 6f131a52800dd454c77e2eeccce02b01 "pdflatex"
-  "out/report/report.toc" 1779720930.23694 3536 ee711a6aef03f5908db45d2d1e2f1288 "pdflatex"
+  "out/report/report.aux" 1779721304.87185 9422 9a470398fc858a66ae897ccae14c78e5 "pdflatex"
+  "out/report/report.lof" 1779721304.87384 1354 2662e062db81f3ba7097f12ea33cdf01 "pdflatex"
+  "out/report/report.lot" 1779721304.87384 755 fcbea1b78608e775a1096aee9760c07b "pdflatex"
+  "out/report/report.out" 1779721304.87284 9147 6f131a52800dd454c77e2eeccce02b01 "pdflatex"
+  "out/report/report.toc" 1779721304.87384 3536 ee711a6aef03f5908db45d2d1e2f1288 "pdflatex"
   "report.tex" 1779720928.60889 22727 8140ad70e7e5044d75c13dde7c6b3918 ""
   (generated)
   "out/report/report.aux"

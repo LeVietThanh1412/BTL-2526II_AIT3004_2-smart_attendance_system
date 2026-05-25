@@ -30,6 +30,7 @@ uploads/
 /minio_data/
 /qdrant_data/
 /mysql_data/
+local_backups/
 
 # 5. OS & Editor configs
 .DS_Store

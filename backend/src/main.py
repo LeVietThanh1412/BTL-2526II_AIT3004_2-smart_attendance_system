@@ -24,6 +24,17 @@ async def lifespan(app: FastAPI):
         import logging
         logging.getLogger(__name__).error(f"Lỗi khởi tạo Qdrant: {e}")
 
+    # Cập nhật schema tự động (Auto Migration cho bản cũ)
+    try:
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE student_schedules ADD COLUMN is_approved BOOLEAN DEFAULT FALSE;"))
+            import logging
+            logging.getLogger(__name__).info("Đã thêm cột is_approved vào student_schedules.")
+    except Exception as e:
+        pass # Bỏ qua nếu cột đã tồn tại
+
+
     # Khởi động daily scheduler quét điểm danh
     from src.core.scheduler import start_scheduler
     start_scheduler()

@@ -205,7 +205,7 @@ Dự án được đóng gói 100% bằng Docker để đảm bảo tính nhất
 
 ### Bước 1: Yêu cầu chuẩn bị (Prerequisites)
 1. **Docker Desktop** (trên Windows/Mac) hoặc **Docker Engine & Docker Compose** (trên Linux).
-2. Tối thiểu **4GB RAM trống** (để nạp Model AI Facenet512 vào bộ nhớ của Worker).
+2. Tối thiểu **4GB RAM trống** (để nạp Model AI ArcFace vào bộ nhớ của Worker).
 3. Đảm bảo các cổng (port) sau trên máy của bạn chưa bị phần mềm khác chiếm dụng:
    - `8080` (Nginx/Frontend)
    - `8000` (FastAPI Backend)
@@ -232,7 +232,7 @@ Chạy lệnh duy nhất sau để Docker tự động tải, cài đặt các t
 # Build và chạy ngầm (-d) toàn bộ hệ thống
 docker compose up --build -d
 ```
-⏳ *Lưu ý quan trọng:* Trong **lần chạy đầu tiên**, Docker sẽ phải tải các thư viện AI nặng (TensorFlow, OpenCV) và tải trọng số mô hình Facenet512 (~150MB) từ internet về. Việc này có thể mất từ 5-10 phút tùy tốc độ mạng. Ở các lần chạy sau, hệ thống sẽ khởi động thần tốc trong chưa tới 10 giây.
+⏳ *Lưu ý quan trọng:* Trong **lần chạy đầu tiên**, Docker sẽ phải tải các thư viện AI nặng (TensorFlow, OpenCV) và tải trọng số mô hình ArcFace (~150MB) từ internet về. Việc này có thể mất từ 5-10 phút tùy tốc độ mạng. Ở các lần chạy sau, hệ thống sẽ khởi động thần tốc trong chưa tới 10 giây.
 
 ### Bước 4: Kiểm tra trạng thái hệ thống
 Bạn gõ lệnh sau để đảm bảo tất cả 8 containers (bao gồm backend, worker, nginx, mysql, qdrant, redis, minio, backup) đều đang ở trạng thái `Up` (Màu xanh / Đang chạy):

@@ -201,7 +201,7 @@ Hệ thống xử lý hai luồng nghiệp vụ chính: \textit{Đăng ký hồ 
 Quá trình xác thực danh tính trong hệ thống sử dụng framework \textbf{DeepFace} thông qua một pipeline chuyên sâu:
 \begin{enumerate}
     \item \textbf{Phát hiện \& Căn chỉnh (Detection \& Alignment)}: Sử dụng \textbf{MTCNN/RetinaFace} để phát hiện khuôn mặt và tự động căn chỉnh góc xoay.
-    \item \textbf{Trích xuất Đặc trưng (Vector Embedding)}: Thuật toán \textbf{Facenet512} biến đổi ma trận ảnh 2D thành một Vector không gian 512 chiều tối ưu hóa khoảng cách Euclide.
+    \item \textbf{Trích xuất Đặc trưng (Vector Embedding)}: Thuật toán \textbf{ArcFace} biến đổi ma trận ảnh 2D thành một Vector không gian 512 chiều tối ưu hóa khoảng cách Euclide.
     \item \textbf{Xác minh 1-1 (1-to-1 Verification)}: So khớp dựa trên \textbf{Cosine Similarity} với ngưỡng cài đặt.
 \end{enumerate}
 
@@ -280,7 +280,7 @@ Toàn bộ dự án được quản lý trong một Repository duy nhất (Monor
 \end{lstlisting}
 
 \section{Lõi Trí Tuệ Nhân Tạo: Face Engine}
-Module trong container Worker là trái tim AI của hệ thống. Ngay từ lúc khởi động container, Model \textbf{Facenet512} và bộ dò tìm khuôn mặt \textbf{MTCNN} đã được nạp sẵn vào RAM thông qua cơ chế Pre-warming. Nhờ đó, hệ thống loại bỏ hoàn toàn độ trễ khởi động (cold-start) trong mỗi lần xử lý tác vụ, đem lại kết quả vector 512 chiều mượt mà.
+Module trong container Worker là trái tim AI của hệ thống. Ngay từ lúc khởi động container, Model \textbf{ArcFace} và bộ dò tìm khuôn mặt \textbf{RetinaFace} đã được nạp sẵn vào RAM thông qua cơ chế Pre-warming. Nhờ đó, hệ thống loại bỏ hoàn toàn độ trễ khởi động (cold-start) trong mỗi lần xử lý tác vụ, đem lại kết quả vector 512 chiều mượt mà.
 
 \section{Truy vấn Vector tốc độ cao với Qdrant}
 Thay vì gọi lệnh search 1-N quét toàn bộ sinh viên, hệ thống đảm bảo an toàn truy cập bằng việc \textbf{Lọc cứng theo ID} (Filter). Điều này biến bài toán từ \textbf{Nhận dạng} thành \textbf{Xác minh (1-to-1 Verification)}:

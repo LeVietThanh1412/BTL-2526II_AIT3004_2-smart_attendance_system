@@ -1,7 +1,10 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from sqlalchemy import text
 
 from src.api.v1 import api_v1_router
 from src.core.config import settings
@@ -11,44 +14,69 @@ from src.models import AttendanceLog, FaceEmbedding, User
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Khởi tạo MySQL
-    _ = (User, FaceEmbedding, AttendanceLog)
-    Base.metadata.create_all(bind=engine)
-    
-    # Khởi tạo Qdrant ngay từ đầu thay vì đợi tương tác
-    try:
-        from src.core.qdrant_client import ensure_qdrant_collection
-        vector_size = 512 if settings.deepface_model_name in ["ArcFace", "Facenet512"] else 128
-        ensure_qdrant_collection(vector_size=vector_size)
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"Lỗi khởi tạo Qdrant: {e}")
+    logger = logging.getLogger(__name__)
+    lock_name = "smart_attendance_init"
+    lock_acquired = False
 
-    # Cập nhật schema tự động (Auto Migration cho bản cũ)
     try:
-        from sqlalchemy import text
         with engine.begin() as conn:
-            try:
-                conn.execute(text("ALTER TABLE student_schedules ADD COLUMN is_approved BOOLEAN DEFAULT FALSE;"))
-            except Exception: pass
-            try:
-                conn.execute(text("ALTER TABLE student_schedules ADD COLUMN is_active BOOLEAN DEFAULT TRUE;"))
-            except Exception: pass
-            try:
-                conn.execute(text("ALTER TABLE student_schedules ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;"))
-            except Exception: pass
-            try:
-                conn.execute(text("ALTER TABLE student_schedules ADD COLUMN approved_at DATETIME NULL;"))
-            except Exception: pass
-    except Exception as e:
-        pass
+            result = conn.execute(
+                text("SELECT GET_LOCK(:name, :timeout)"),
+                {"name": lock_name, "timeout": 10},
+            )
+            lock_acquired = result.scalar() == 1
 
+        if lock_acquired:
+            # Khởi tạo MySQL (chỉ chạy 1 worker để tránh DDL concurrent)
+            _ = (User, FaceEmbedding, AttendanceLog)
+            Base.metadata.create_all(bind=engine)
 
-    # Khởi động daily scheduler quét điểm danh
-    from src.core.scheduler import start_scheduler
-    start_scheduler()
+            # Khởi tạo Qdrant ngay từ đầu thay vì đợi tương tác
+            try:
+                from src.core.qdrant_client import ensure_qdrant_collection
 
-    yield
+                vector_size = 512 if settings.deepface_model_name in ["ArcFace", "Facenet512"] else 128
+                ensure_qdrant_collection(vector_size=vector_size)
+            except Exception as e:
+                logger.error(f"Lỗi khởi tạo Qdrant: {e}")
+
+            # Cập nhật schema tự động (Auto Migration cho bản cũ)
+            try:
+                with engine.begin() as conn:
+                    try:
+                        conn.execute(text("ALTER TABLE student_schedules ADD COLUMN is_approved BOOLEAN DEFAULT FALSE;"))
+                    except Exception:
+                        pass
+                    try:
+                        conn.execute(text("ALTER TABLE student_schedules ADD COLUMN is_active BOOLEAN DEFAULT TRUE;"))
+                    except Exception:
+                        pass
+                    try:
+                        conn.execute(text("ALTER TABLE student_schedules ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;"))
+                    except Exception:
+                        pass
+                    try:
+                        conn.execute(text("ALTER TABLE student_schedules ADD COLUMN approved_at DATETIME NULL;"))
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+            # Khởi động daily scheduler quét điểm danh (1 instance)
+            from src.core.scheduler import start_scheduler
+
+            start_scheduler()
+        else:
+            logger.info("Skip init: DB lock not acquired.")
+
+        yield
+    finally:
+        if lock_acquired:
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text("SELECT RELEASE_LOCK(:name)"), {"name": lock_name})
+            except Exception as e:
+                logger.warning(f"Release DB lock failed: {e}")
 
 
 app = FastAPI(

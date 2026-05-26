@@ -103,7 +103,7 @@ def recognize_face_task(self, image_url: str, student_id: str = "") -> dict:
 				"status": "quality_error",
 				"student_id": student_id,
 				"score": 0.0,
-				"threshold": threshold,
+				"threshold": similarity_threshold,
 				"matched": False,
 				"reason": str(exc),
 				"message": str(exc),

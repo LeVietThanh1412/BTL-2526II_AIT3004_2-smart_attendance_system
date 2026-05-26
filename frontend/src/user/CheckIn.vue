@@ -431,8 +431,6 @@ main.content {
     display: flex;
     align-items: flex-start;
     gap: 14px;
-    box-sizing: border-box;
-    width: 100%;
 }
 
 .result-area.error {
@@ -465,9 +463,6 @@ main.content {
 }
 
 .detail-times {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 8px;
     font-size: 12px;
     color: var(--text-sub);
     margin-top: 4px;
@@ -511,27 +506,22 @@ main.content {
     color: #92400e;
     font-size: 11px;
     font-weight: 600;
-    white-space: nowrap;
 }
 
 .result-info {
     flex-grow: 1;
-    min-width: 0;
-    text-align: left;
 }
 
 .result-info h4 {
     margin: 0 0 4px;
     font-size: 16px;
     font-weight: 600;
-    word-break: break-word;
 }
 
 .result-info p {
     margin: 0;
     color: var(--text-sub);
     font-size: 13px;
-    word-break: break-word;
 }
 
 .result-status {

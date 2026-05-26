@@ -36,7 +36,7 @@ class ActivityItem(BaseModel):
     time: str
     date: str
     status: str
-    statusColor: str  # "green" | "red" | "yellow"
+    statusColor: str
 
 
 class RecentActivitiesResponse(BaseModel):
@@ -73,7 +73,7 @@ class NotificationResponse(BaseModel):
 
 class NotificationItem(BaseModel):
     id: str
-    type: str  # "attendance_failed" | "attendance_late" | "new_student" | "schedule_change"
+    type: str
     title: str
     message: str
     time: str
@@ -81,7 +81,6 @@ class NotificationItem(BaseModel):
     route: str
 
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
 
 # Threshold (local time) that separates "on-time" from "late".
 # Students checking in after TIME_LATE are considered late.
@@ -107,10 +106,13 @@ def _fmt_time(dt: datetime) -> str:
     return dt.strftime("%H:%M:%S")
 
 
-def _fmt_date(dt: datetime) -> str:
-    """Format a datetime as DD/MM/YYYY."""
-    if dt.tzinfo is not None:
-        dt = dt.astimezone(tz=None).replace(tzinfo=None)
+def _fmt_date(dt: date | datetime) -> str:
+    """Format a date/datetime as DD/MM/YYYY."""
+    if isinstance(dt, datetime):
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(tz=None).replace(tzinfo=None)
+        return dt.strftime("%d/%m/%Y")
+    # `date` has no tzinfo; keep it simple.
     return dt.strftime("%d/%m/%Y")
 
 
@@ -240,8 +242,8 @@ def get_recent_activities(limit: int = 10, db: Session = Depends(get_db)):
         items.append(
             ActivityItem(
                 name=display_name,
-                time=_fmt_time(dt),
-                date=_fmt_date(dt),
+                time=_fmt_time(dt) if dt else "--:--",
+                date=_fmt_date(dt) if dt else _fmt_date(attendance.attendance_date),
                 status=status_label,
                 statusColor=color,
             )

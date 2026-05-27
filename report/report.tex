@@ -82,6 +82,8 @@
 
 % API path helper to allow clean line breaks in tables
 \newcommand{\apipath}[1]{\begingroup\small\nolinkurl{#1}\endgroup}
+% Inline code helper with safe line breaks (underscores, slashes)
+\newcommand{\code}[1]{\begingroup\ttfamily\small\nolinkurl{#1}\endgroup}
 
 \begin{document}
 
@@ -186,6 +188,7 @@ Hệ thống xử lý hai luồng nghiệp vụ chính: \textit{Đăng ký hồ 
     \item Đăng ký sinh viên bằng ảnh hoặc video, lưu vector khuôn mặt.
     \item Quản lý lịch học theo ca, có cơ chế duyệt/huỷ.
     \item Điểm danh 1-1 theo mã sinh viên, hỗ trợ check-in/check-out đa phiên.
+    \item Cronjob 23:59 tự động quét vắng và đánh dấu quên check-out theo lịch học.
     \item Phát hiện đi muộn theo ngưỡng thời gian, cảnh báo và lưu log.
     \item Dashboard thống kê, nhật ký điểm danh, thông báo và xuất báo cáo CSV.
     \item Quản trị người dùng và quyền truy cập thông qua JWT.
@@ -246,17 +249,21 @@ Deploy & Docker Compose & Đóng gói, triển khai nhanh toàn hệ thống. \\
 \section{Luồng xử lý}
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{sequency.png}
+    \includegraphics[width=0.90\textwidth,height=0.75\textheight,keepaspectratio]{sequency.png}
     \caption{Sơ đồ tuần tự cho luồng đăng ký/điểm danh}
     \label{fig:sequence}
 \end{figure}
 
+Hình \ref{fig:sequence} mô tả chuỗi xử lý chính: frontend gửi yêu cầu, backend kiểm tra dữ liệu và tải ảnh lên MinIO, sau đó đẩy tác vụ vào Redis để worker trích xuất vector, so khớp với Qdrant và trả kết quả về backend ghi log.
+
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{activity_diem_danh.png}
+    \includegraphics[width=0.90\textwidth,height=0.75\textheight,keepaspectratio]{activity_diem_danh.png}
     \caption{Sơ đồ hoạt động cho luồng điểm danh 1-1}
     \label{fig:activity}
 \end{figure}
+
+Hình \ref{fig:activity} thể hiện luồng xác minh 1-1 theo mã sinh viên: nếu không có mã hoặc không tồn tại dữ liệu vector thì trả lỗi sớm; nếu có, worker trích xuất vector, tính độ tương đồng với ngưỡng, trả về kết quả khớp/không khớp để backend ghi nhận.
 
 \section{Thiết kế cơ sở dữ liệu}
 \begin{figure}[H]
@@ -268,7 +275,7 @@ Deploy & Docker Compose & Đóng gói, triển khai nhanh toàn hệ thống. \\
 
 \begin{table}[H]
 \centering
-\begin{tabularx}{\textwidth}{|l|X|}
+\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{0.48\textwidth}|>{\raggedright\arraybackslash}p{0.48\textwidth}|}
 \hline
 \textbf{Bảng/Collection} & \textbf{Mô tả} \\ \hline
 users & Thông tin sinh viên, trạng thái duyệt. \\ \hline
@@ -330,11 +337,40 @@ Luồng điểm danh sử dụng cơ chế xác minh 1-1 theo mã sinh viên. Ba
     \item \textbf{Đi muộn}: nếu check-in sau 15 phút kể từ thời điểm bắt đầu ca.
 \end{itemize}
 
+Cuối ngày (23:59), scheduler tự động quét các ca học đã đăng ký: nếu không có phiên điểm danh giao cắt thì tạo log vắng mặt, đồng thời đánh dấu các phiên thiếu check-out là \textit{present\_incomplete}.
+
 \section{AI Worker và Vector DB}
-Worker sử dụng DeepFace (ArcFace) để trích xuất vector 512 chiều, kết hợp bộ dò tìm mặt MTCNN. Vector được so khớp trên Qdrant với bộ lọc \texttt{student\_id}, tránh quét toàn bộ dữ liệu và giữ độ chính xác cao.
+Worker sử dụng DeepFace (ArcFace) để trích xuất vector 512 chiều, kết hợp bộ dò tìm mặt RetinaFace (có thể cấu hình qua biến môi trường). Vector được so khớp trên Qdrant với bộ lọc \texttt{student\_id}, tránh quét toàn bộ dữ liệu và giữ độ chính xác cao.
 
 \section{Frontend}
 Giao diện Vue 3 gồm hai vai trò: Sinh viên (check-in/check-out, nhập mã sinh viên) và Admin (dashboard thống kê, duyệt sinh viên, duyệt lịch học, xem log, xuất CSV).
+
+\section{Giao diện demo}
+Các màn hình dưới đây minh họa luồng thao tác chính của hệ thống từ đăng nhập, theo dõi thống kê đến điểm danh.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{dang_nhap_admin.png}
+        \caption{Đăng nhập Admin}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{dashbroad.png}
+        \caption{Dashboard thống kê}
+    \end{subfigure}
+    \caption{Các màn hình quản trị chính của hệ thống}
+    \label{fig:demo_admin}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{dang_ki_diem_danh.png}
+    \caption{Màn hình điểm danh/check-in cho sinh viên}
+    \label{fig:demo_checkin}
+\end{figure}
 
 \chapter{Triển khai và vận hành}
 
@@ -357,20 +393,35 @@ backup & Sao lưu định kỳ & - \\ \hline
 \caption{Danh sách dịch vụ chính trong Docker Compose}
 \end{table}
 
-\section{Cấu hình môi trường}
-Các biến môi trường quan trọng nằm trong file \texttt{.env}:
+\section{Docker Volumes}
+Các volume được sử dụng để lưu dữ liệu bền vững và cache model:
 \begin{table}[H]
 \centering
 \begin{tabularx}{\textwidth}{|l|X|}
 \hline
+\textbf{Volume} & \textbf{Mục đích} \\ \hline
+mysql\_data & Lưu dữ liệu MySQL. \\ \hline
+qdrant\_data & Lưu vector embeddings trong Qdrant. \\ \hline
+minio\_data & Lưu object storage (ảnh điểm danh). \\ \hline
+deepface\_data & Cache model DeepFace trong worker. \\ \hline
+\end{tabularx}
+\caption{Danh sách Docker Volumes chính}
+\end{table}
+
+\section{Cấu hình môi trường}
+Các biến môi trường quan trọng nằm trong file \texttt{.env}:
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{0.48\textwidth}|>{\raggedright\arraybackslash}p{0.48\textwidth}|}
+\hline
 \textbf{Biến} & \textbf{Ý nghĩa} \\ \hline
-DATABASE\_URL / MYSQL\_* & Thông tin kết nối MySQL. \\ \hline
-QDRANT\_URL, QDRANT\_COLLECTION & Kết nối và tên collection Qdrant. \\ \hline
-MINIO\_ENDPOINT, MINIO\_ACCESS\_KEY, MINIO\_SECRET\_KEY & Kết nối MinIO. \\ \hline
-FACE\_MATCH\_THRESHOLD & Ngưỡng khớp khuôn mặt. \\ \hline
-DEEPFACE\_MODEL\_NAME, FACE\_DETECTOR\_BACKEND & Cấu hình mô hình và detector. \\ \hline
-ADMIN\_USERNAME, ADMIN\_PASSWORD, JWT\_SECRET & Tài khoản quản trị và khóa JWT. \\ \hline
-TIME\_LATE & Ngưỡng xác định đi muộn. \\ \hline
+\code{DATABASE_URL / MYSQL_*} & Thông tin kết nối MySQL. \\ \hline
+\code{QDRANT_URL, QDRANT_COLLECTION} & Kết nối và tên collection Qdrant. \\ \hline
+\code{MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY} & Kết nối MinIO. \\ \hline
+\code{FACE_MATCH_THRESHOLD} & Ngưỡng khớp khuôn mặt. \\ \hline
+\code{DEEPFACE_MODEL_NAME, FACE_DETECTOR_BACKEND} & Cấu hình mô hình và detector. \\ \hline
+\code{ADMIN_USERNAME, ADMIN_PASSWORD, JWT_SECRET} & Tài khoản quản trị và khóa JWT. \\ \hline
+\code{TIME_LATE} & Ngưỡng xác định đi muộn. \\ \hline
 \end{tabularx}
 \caption{Các biến môi trường quan trọng}
 \end{table}
@@ -414,6 +465,19 @@ Tổng end-to-end & $< 1.5$ giây & Môi trường demo nội bộ. \\ \hline
 \begin{itemize}
     \item Chưa tích hợp \textit{liveness detection}, dễ bị spoof bằng ảnh tĩnh.
     \item Điều kiện ánh sáng kém hoặc che mặt có thể giảm độ chính xác.
+\end{itemize}
+
+\chapter{Tính năng nâng cao}
+
+\section{Các hạng mục đã triển khai}
+Nhóm đã hoàn thiện một số hạng mục nâng cao nhằm tăng tính sẵn sàng, khả năng triển khai và vận hành thực tế:
+\begin{itemize}
+    \item \textbf{CI/CD}: thiết lập pipeline tự động build và đóng gói Docker image, đảm bảo quy trình phát hành nhất quán.
+    \item \textbf{Triển khai Internet}: hệ thống được public qua domain:\\
+    \code{https://attendance.thanhtech.cloud} với SSL và Nginx gateway.
+    \item \textbf{Backup dữ liệu}: container backup định kỳ dump MySQL, snapshot Qdrant và mirror MinIO, giữ lịch sử 7 ngày.
+    \item \textbf{Quản lý cấu hình model/pipeline}: tham số mô hình và ngưỡng nhận diện cấu hình qua \texttt{.env} (\code{DEEPFACE_MODEL_NAME}, \code{FACE_DETECTOR_BACKEND}, \code{FACE_MATCH_THRESHOLD}).
+    \item \textbf{Cache và hiệu năng}: Redis làm broker/cache, TTL cho embedding giúp giảm tải truy vấn và ổn định độ trễ.
 \end{itemize}
 
 \chapter{Kết luận và hướng phát triển}

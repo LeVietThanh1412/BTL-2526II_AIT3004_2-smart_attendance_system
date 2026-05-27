@@ -289,6 +289,18 @@ INPUT /usr/share/texmf-dist/fonts/tfm/public/lm/t5-lmtt10.tfm
 INPUT /usr/share/texmf-dist/fonts/tfm/public/lm/rm-lmr10.tfm
 INPUT /usr/share/texmf-dist/fonts/tfm/public/lm/lmmi10.tfm
 INPUT /usr/share/texmf-dist/fonts/tfm/public/lm/lmsy10.tfm
+INPUT ../demo/dang_nhap_admin.png
+INPUT ../demo/dang_nhap_admin.png
+INPUT ../demo/dang_nhap_admin.png
+INPUT ../demo/dang_nhap_admin.png
+INPUT ../demo/dashbroad.png
+INPUT ../demo/dashbroad.png
+INPUT ../demo/dashbroad.png
+INPUT ../demo/dashbroad.png
+INPUT ../demo/dang_ki_diem_danh.png
+INPUT ../demo/dang_ki_diem_danh.png
+INPUT ../demo/dang_ki_diem_danh.png
+INPUT ../demo/dang_ki_diem_danh.png
 INPUT /usr/share/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc
 INPUT /usr/share/texmf-dist/fonts/enc/dvips/lm/lm-rm.enc
 INPUT /usr/share/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc
@@ -297,6 +309,7 @@ INPUT out/report/report.out
 INPUT out/report/report.out
 INPUT /usr/share/texmf-dist/fonts/type1/public/lm/lmbx12.pfb
 INPUT /usr/share/texmf-dist/fonts/type1/public/lm/lmmi12.pfb
+INPUT /usr/share/texmf-dist/fonts/type1/public/lm/lmr10.pfb
 INPUT /usr/share/texmf-dist/fonts/type1/public/lm/lmr12.pfb
 INPUT /usr/share/texmf-dist/fonts/type1/public/lm/lmr17.pfb
 INPUT /usr/share/texmf-dist/fonts/type1/public/lm/lmr6.pfb

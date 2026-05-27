@@ -1,6 +1,6 @@
 # Smart Attendance System (Hệ Thống Điểm Danh Thông Minh)
 
-Hệ thống điểm danh tự động bằng nhận diện khuôn mặt, triển khai theo kiến trúc microservices. Dự án kết hợp DeepFace (ArcFace), Qdrant Vector DB và Celery/Redis để đảm bảo tốc độ xử lý nhanh, chính xác và dễ mở rộng.
+Hệ thống điểm danh tự động bằng nhận diện khuôn mặt, triển khai theo kiến trúc microservices. Dự án kết hợp DeepFace (ArcFace) + RetinaFace, Qdrant Vector DB và Celery/Redis để đảm bảo tốc độ xử lý nhanh, chính xác và dễ mở rộng.
 
 ## Mục tiêu
 
@@ -8,10 +8,18 @@ Hệ thống điểm danh tự động bằng nhận diện khuôn mặt, triể
 - Tối ưu thời gian điểm danh bằng xử lý bất đồng bộ.
 - Cung cấp dashboard quản trị, log chi tiết và báo cáo CSV.
 
+## Ghi chú điều chỉnh so với bản mô tả gốc
+
+- Frontend dùng Vue 3 + Vite SPA (thay cho React).
+- Pipeline AI dùng ArcFace + RetinaFace (cau hinh qua `DEEPFACE_MODEL_NAME` va `FACE_DETECTOR_BACKEND`).
+- Cronjob 23:59 quet vang mat va danh dau quen check-out.
+- Bo sung Backup Service va Docker Volumes de luu du lieu ben vung.
+
 ## Tính năng chính
 
 - Đăng ký sinh viên bằng ảnh hoặc video, tự động trích xuất vector khuôn mặt.
 - Điểm danh check-in/check-out theo ca học, hỗ trợ đa phiên trong ngày.
+- Cronjob 23:59 quet vang mat, danh dau quên check-out theo lịch học.
 - Tự động phát hiện đi muộn theo ngưỡng thời gian.
 - Duyệt sinh viên, duyệt lịch học và sửa trạng thái điểm danh.
 - Dashboard thống kê, nhật ký phân trang, thông báo và xuất CSV.
@@ -119,6 +127,13 @@ Container `backup` chạy định kỳ (mặc định 24 giờ) và lưu vào th
 - MinIO mirror: `local_backups/minio/`
 
 Retention mặc định là 7 ngày.
+
+## Docker Volumes
+
+- `mysql_data`: Lưu CSDL MySQL.
+- `qdrant_data`: Lưu vector embeddings trong Qdrant.
+- `minio_data`: Lưu object storage (ảnh điểm danh).
+- `deepface_data`: Cache model DeepFace trong worker.
 
 ## Cấu trúc thư mục
 

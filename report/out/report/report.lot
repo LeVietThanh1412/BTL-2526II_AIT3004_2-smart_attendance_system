@@ -4,12 +4,14 @@
 \addvspace {10\p@ }
 \contentsline {table}{\numberline {2.1}{\ignorespaces Bảng công nghệ chính của dự án}}{9}{table.caption.6}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {3.1}{\ignorespaces Mô tả các thực thể chính}}{15}{table.caption.13}%
+\contentsline {table}{\numberline {3.1}{\ignorespaces Mô tả các thực thể chính}}{14}{table.caption.13}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {5.1}{\ignorespaces Danh sách dịch vụ chính trong Docker Compose}}{18}{table.caption.14}%
-\contentsline {table}{\numberline {5.2}{\ignorespaces Các biến môi trường quan trọng}}{19}{table.caption.15}%
+\contentsline {table}{\numberline {5.1}{\ignorespaces Danh sách dịch vụ chính trong Docker Compose}}{18}{table.caption.16}%
+\contentsline {table}{\numberline {5.2}{\ignorespaces Danh sách Docker Volumes chính}}{18}{table.caption.17}%
+\contentsline {table}{\numberline {5.3}{\ignorespaces Các biến môi trường quan trọng}}{19}{table.caption.18}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {6.1}{\ignorespaces Các kịch bản kiểm thử chức năng chính}}{20}{table.caption.16}%
-\contentsline {table}{\numberline {6.2}{\ignorespaces Bảng phân rã độ trễ cho luồng điểm danh}}{20}{table.caption.17}%
+\contentsline {table}{\numberline {6.1}{\ignorespaces Các kịch bản kiểm thử chức năng chính}}{20}{table.caption.19}%
+\contentsline {table}{\numberline {6.2}{\ignorespaces Bảng phân rã độ trễ cho luồng điểm danh}}{20}{table.caption.20}%
+\addvspace {10\p@ }
 \addvspace {10\p@ }

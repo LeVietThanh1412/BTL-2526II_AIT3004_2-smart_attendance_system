@@ -4,6 +4,7 @@ services:
     container_name: mysql
     restart: unless-stopped
     environment:
+      TZ: Asia/Ho_Chi_Minh
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
@@ -58,7 +59,8 @@ services:
       - attendance_net
 
   backend:
-    image: levietthanh1412/attendance-backend:v1
+    image: levietthanh1412/attendance-backend:v9
+    pull_policy: always
     container_name: backend
     restart: unless-stopped
     depends_on:
@@ -71,6 +73,7 @@ services:
       minio:
         condition: service_started
     environment:
+      TZ: Asia/Ho_Chi_Minh
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
@@ -94,7 +97,8 @@ services:
       - attendance_net
 
   worker:
-    image: levietthanh1412/attendance-worker:v1
+    image: levietthanh1412/attendance-worker:v9
+    pull_policy: always
     container_name: worker
     restart: unless-stopped
     depends_on:
@@ -105,6 +109,7 @@ services:
       minio:
         condition: service_started
     environment:
+      TZ: Asia/Ho_Chi_Minh
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
       QDRANT_URL: ${QDRANT_URL}
@@ -115,23 +120,46 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET}
       MINIO_SECURE: ${MINIO_SECURE}
       MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL}
-
-      FACE_MATCH_THRESHOLD: ${FACE_MATCH_THRESHOLD}
+      FACE_MATCH_THRESHOLD: ${FACE_MATCH_THRESHOLD:-0.6}
       DEEPFACE_MODEL_NAME: ${DEEPFACE_MODEL_NAME:-ArcFace}
-
+      FACE_DETECTOR_BACKEND: ${FACE_DETECTOR_BACKEND:-mtcnn}
+      FACE_DETECTION_CONFIDENCE: ${FACE_DETECTION_CONFIDENCE:-0.5}
     networks:
       - attendance_net
     volumes:
       - deepface_data:/root/.deepface
 
   nginx:
-    image: levietthanh1412/attendance-nginx:v1
+    image: levietthanh1412/attendance-nginx:v9
+    pull_policy: always
     container_name: nginx
     restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "80:80"
+      - "8080:80"
+    networks:
+      - attendance_net
+
+  backup:
+    image: levietthanh1412/attendance-backup:v9
+    pull_policy: always
+    container_name: backup
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      minio:
+        condition: service_started
+    environment:
+      TZ: Asia/Ho_Chi_Minh
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
     networks:
       - attendance_net
 

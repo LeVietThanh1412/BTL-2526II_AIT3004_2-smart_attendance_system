@@ -202,40 +202,86 @@ async def check_in(
     check_out_str = None
 
     if not attendance or attendance.check_out_time is not None:
-        # === CHECK-IN MỚI ===
-        action = "check_in"
+        has_open_session = False
+    else:
+        has_open_session = True
 
-        # Xác định ca học mục tiêu thực tế cho phiên check-in này
-        target_shift_id = None
-        target_shift_start = None
-        target_shift_end = None
-        target_checkin_earliest = None
-        
+    # Xác định ca học mục tiêu hiện tại (Check-in và Check-out)
+    valid_checkin_shift = None
+    target_checkin_start = None
+    target_checkin_end = None
+    for sid in sorted(shift_ids):
+        s_start = SHIFTS[sid]["start"]
+        s_end = SHIFTS[sid]["end"]
+        c_earliest = (datetime.combine(current_date, s_start) - timedelta(minutes=30)).time()
+        # Khung giờ check-in: Từ 30p trước ca đến khi ca kết thúc
+        if c_earliest <= current_time <= s_end:
+            valid_checkin_shift = sid
+            target_checkin_start = s_start
+            target_checkin_end = s_end
+            break
+
+    valid_checkout_shift = None
+    target_checkout_end = None
+    for sid in sorted(shift_ids):
+        s_end = SHIFTS[sid]["end"]
+        c_out_start = (datetime.combine(current_date, s_end) - timedelta(minutes=30)).time()
+        c_out_end = (datetime.combine(current_date, s_end) + timedelta(minutes=30)).time()
+        if c_out_start <= current_time <= c_out_end:
+            valid_checkout_shift = sid
+            target_checkout_end = s_end
+            break
+
+    # Lấy ca học của phiên đang mở (nếu có)
+    open_shift_id = None
+    if has_open_session:
+        check_in_t = attendance.check_in_time.time()
         for sid in sorted(shift_ids):
-            s_start = SHIFTS[sid]["start"]
-            s_end = SHIFTS[sid]["end"]
-            c_earliest = (datetime.combine(current_date, s_start) - timedelta(minutes=30)).time()
-            
-            # Khung giờ check-in: Từ 30p trước ca đến khi ca kết thúc
-            if current_time >= c_earliest and current_time <= s_end:
-                target_shift_id = sid
-                target_shift_start = s_start
-                target_shift_end = s_end
-                target_checkin_earliest = c_earliest
+            c_earliest = (datetime.combine(current_date, SHIFTS[sid]["start"]) - timedelta(minutes=30)).time()
+            if c_earliest <= check_in_t <= SHIFTS[sid]["end"]:
+                open_shift_id = sid
                 break
-                
-        if not target_shift_id:
+
+    def _get_group(sid):
+        if sid in [1, 2]: return "SANG"
+        if sid in [3, 4]: return "CHIEU"
+        return "TOI"
+
+    # State Machine quyết định Action
+    if has_open_session:
+        # Chặn check-out chéo buổi (Mở phiên Sáng nhưng quét lúc tan ca Chiều)
+        if valid_checkout_shift and open_shift_id and _get_group(valid_checkout_shift) != _get_group(open_shift_id):
+            valid_checkout_shift = None
+
+        if valid_checkout_shift:
+            action = "check_out"
+            target_shift_end_time = target_checkout_end
+            target_shift_start = None
+        elif valid_checkin_shift:
+            if valid_checkin_shift == open_shift_id:
+                return _reject_with_score("Bạn đã điểm danh VÀO ca này rồi. Vui lòng đợi đến giờ điểm danh RA.")
+            # Hết hạn check-out ca cũ, đang trong khung check-in ca mới -> Cho phép check-in mới
+            action = "check_in"
+            target_shift_start = target_checkin_start
+            target_shift_end = target_checkin_end
+        else:
+            return _reject_with_score("Hiện tại không nằm trong khung giờ tan ca hay bắt đầu ca học nào. Vui lòng thử lại đúng giờ.")
+    else:
+        # Không có phiên mở -> Phải là check-in
+        if valid_checkin_shift:
+            action = "check_in"
+            target_shift_start = target_checkin_start
+            target_shift_end = target_checkin_end
+        else:
             first_earliest = (datetime.combine(current_date, shift_start_time) - timedelta(minutes=30)).time()
             if current_time < first_earliest:
-                return _reject_with_score(
-                    f"Chưa đến giờ học. Ca bắt đầu lúc {shift_start_time.strftime('%H:%M')}, có thể check-in sớm nhất lúc {first_earliest.strftime('%H:%M')}."
-                )
+                return _reject_with_score(f"Chưa đến giờ học. Ca bắt đầu lúc {shift_start_time.strftime('%H:%M')}.")
             if current_time > end_time_of_last_shift:
-                return _reject_with_score("Tất cả các ca học của bạn hôm nay đã kết thúc, không thể check-in.")
-            
+                return _reject_with_score("Tất cả các ca học của bạn hôm nay đã kết thúc.")
             return _reject_with_score("Hiện tại không nằm trong khung giờ mở điểm danh của bất kỳ ca học nào bạn đăng ký.")
 
-        # Xác định đi muộn (15 phút sau khi ca bắt đầu)
+    if action == "check_in":
+        # === XỬ LÝ CHECK-IN ===
         late_threshold = (datetime.combine(current_date, target_shift_start) + timedelta(minutes=15)).time()
         is_late = current_time > late_threshold
 
@@ -286,39 +332,7 @@ async def check_in(
         db.add(attendance)
 
     else:
-        # === CHECK-OUT ===
-        action = "check_out"
-
-        # Ràng buộc: chỉ checkout trong 30 phút trước giờ tan ca của CA HIỆN TẠI (dựa vào check_in_time)
-        check_in_t = attendance.check_in_time.time()
-        target_shift = shift_ids[-1]
-        for s in shift_ids:
-            if check_in_t <= SHIFTS[s]["end"]:
-                target_shift = s
-                break
-                
-        target_shift_end_time = SHIFTS[target_shift]["end"]
-
-        checkout_window_start = (
-            datetime.combine(current_date, target_shift_end_time) - timedelta(minutes=30)
-        ).time()
-        
-        # Cho phép check-out muộn 30 phút sau khi ca kết thúc
-        checkout_window_end = (
-            datetime.combine(current_date, target_shift_end_time) + timedelta(minutes=30)
-        ).time()
-        
-        if current_time < checkout_window_start:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Chưa đến giờ tan ca hiện tại. Chỉ được check-out trong 30 phút cuối (từ {checkout_window_start.strftime('%H:%M')}, tan lúc {target_shift_end_time.strftime('%H:%M')})."
-            )
-        if current_time > checkout_window_end:
-             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Đã quá hạn check-out của ca học này (hạn cuối {checkout_window_end.strftime('%H:%M')})."
-            )
-
+        # === XỬ LÝ CHECK-OUT ===
         is_late = bool(attendance.is_late_override)
 
         if status_enum != AttendanceStatus.success:

@@ -116,23 +116,9 @@ def _fmt_date(dt: date | datetime) -> str:
     return dt.strftime("%d/%m/%Y")
 
 
-def _is_late(dt: datetime) -> bool:
-    if dt.tzinfo is not None:
-        dt = dt.astimezone(tz=None).replace(tzinfo=None)
-
-    if dt.hour > _LATE_HOUR:
-        return True
-    if dt.hour < _LATE_HOUR:
-        return False
-    return dt.minute > _LATE_MINUTE
-
-
 def _build_status(attendance: Attendance) -> tuple[str, str]:
     if attendance.status == AttendanceStatus.success:
-        if attendance.is_late_override is not None:
-            late = attendance.is_late_override
-        else:
-            late = _is_late(attendance.check_in_time)
+        late = bool(attendance.is_late_override)
             
         if late:
             return ("Hoàn thành (Muộn)" if attendance.check_out_time else "Vào muộn", "yellow")
@@ -163,15 +149,20 @@ def get_statistics(db: Session = Depends(get_db)):
     Tra ve thong ke diem danh trong ngay hom nay.
     """
     today = date.today()
+    day_of_week = today.weekday()
 
-    total_members = db.query(func.count(User.id)).scalar() or 0
+    total_members = db.query(func.count(StudentSchedule.user_id)).filter(
+        StudentSchedule.day_of_week == day_of_week,
+        StudentSchedule.is_approved == True,
+        StudentSchedule.is_active == True
+    ).scalar() or 0
 
     # Distinct users who checked in successfully today
     checked_in_ids = (
         db.query(Attendance.user_id)
         .filter(
-            func.date(Attendance.check_in_time) == today,
-            Attendance.status == AttendanceStatus.success,
+            Attendance.attendance_date == today,
+            Attendance.status.in_([AttendanceStatus.success, AttendanceStatus.present_incomplete]),
             Attendance.user_id.isnot(None),
         )
         .distinct()
@@ -179,28 +170,19 @@ def get_statistics(db: Session = Depends(get_db)):
     )
 
     checked_in_count = db.query(func.count()).select_from(checked_in_ids).scalar() or 0
-    missing_count = max(0, total_members - checked_in_count)
+    missing_count = db.query(func.count(Attendance.id)).filter(
+        Attendance.attendance_date == today,
+        Attendance.status.in_([AttendanceStatus.absent_unexcused, AttendanceStatus.absent_excused])
+    ).scalar() or 0
 
-    on_time_filter = or_(
-        Attendance.is_late_override == False,
-        and_(
-            Attendance.is_late_override.is_(None),
-            or_(
-                func.hour(Attendance.check_in_time) < _LATE_HOUR,
-                and_(
-                    func.hour(Attendance.check_in_time) == _LATE_HOUR,
-                    func.minute(Attendance.check_in_time) <= _LATE_MINUTE,
-                ),
-            )
-        )
-    )
+    on_time_filter = (Attendance.is_late_override == False) | (Attendance.is_late_override.is_(None))
 
     # On-time: checked in before or at TIME_LATE
     on_time_ids = (
         db.query(Attendance.user_id)
         .filter(
-            func.date(Attendance.check_in_time) == today,
-            Attendance.status == AttendanceStatus.success,
+            Attendance.attendance_date == today,
+            Attendance.status.in_([AttendanceStatus.success, AttendanceStatus.present_incomplete]),
             Attendance.user_id.isnot(None),
             on_time_filter,
         )
@@ -227,7 +209,7 @@ def get_recent_activities(limit: int = 10, db: Session = Depends(get_db)):
     rows = (
         db.query(Attendance, User)
         .outerjoin(User, Attendance.user_id == User.id)
-        .order_by(Attendance.check_in_time.desc())
+        .order_by(Attendance.id.desc())
         .limit(limit)
         .all()
     )
@@ -235,7 +217,7 @@ def get_recent_activities(limit: int = 10, db: Session = Depends(get_db)):
     items: list[ActivityItem] = []
     for attendance, user in rows:
         dt: datetime = attendance.check_in_time
-        display_name = user.full_name if user else f"ID: {attendance.user_id or 'Unknown'}"
+        display_name = (user.full_name if user else None) or attendance.snapshot_full_name or f"ID: {attendance.user_id or 'Unknown'}"
 
         status_label, color = _build_status(attendance)
 
@@ -280,8 +262,8 @@ def get_attendance_logs(
     items: list[AttendanceLogItem] = []
     for attendance, user in rows:
         dt: datetime = attendance.check_in_time
-        display_name = user.full_name if user else "Không rõ"
-        display_student_id = user.student_id if user else None
+        display_name = (user.full_name if user else None) or attendance.snapshot_full_name or "Không rõ"
+        display_student_id = (user.student_id if user else None) or attendance.snapshot_student_id
         status_label, color = _build_status(attendance)
 
         items.append(
@@ -322,33 +304,21 @@ def get_notifications(db: Session = Depends(get_db)):
     count = (
         db.query(func.count(Attendance.id))
         .filter(
-            func.date(Attendance.check_in_time) == today,
+            Attendance.attendance_date == today,
             Attendance.status != AttendanceStatus.success,
         )
         .scalar()
         or 0
     )
 
-    late_filter = or_(
-        Attendance.is_late_override == True,
-        and_(
-            Attendance.is_late_override.is_(None),
-            or_(
-                func.hour(Attendance.check_in_time) > _LATE_HOUR,
-                and_(
-                    func.hour(Attendance.check_in_time) == _LATE_HOUR,
-                    func.minute(Attendance.check_in_time) > _LATE_MINUTE,
-                ),
-            )
-        )
-    )
+    late_filter = (Attendance.is_late_override == True)
 
     # Also count users who checked in late
     late_count = (
         db.query(func.count(Attendance.id))
         .filter(
-            func.date(Attendance.check_in_time) == today,
-            Attendance.status == AttendanceStatus.success,
+            Attendance.attendance_date == today,
+            Attendance.status.in_([AttendanceStatus.success, AttendanceStatus.present_incomplete]),
             late_filter,
         )
         .scalar()
@@ -367,7 +337,10 @@ def get_notifications(db: Session = Depends(get_db)):
     # Count pending schedules
     pending_schedules_count = (
         db.query(func.count(StudentSchedule.id))
-        .filter(StudentSchedule.is_approved == False)
+        .filter(
+            StudentSchedule.is_approved == False,
+            StudentSchedule.is_active == True
+        )
         .scalar()
         or 0
     )
@@ -391,14 +364,14 @@ def get_notifications_list(db: Session = Depends(get_db)):
         db.query(Attendance, User)
         .outerjoin(User, Attendance.user_id == User.id)
         .filter(
-            func.date(Attendance.check_in_time) == today,
+            Attendance.attendance_date == today,
             Attendance.status != AttendanceStatus.success,
         )
         .all()
     )
     for attendance, user in failed_rows:
         dt: datetime = attendance.check_in_time
-        display_name = user.full_name if user else "Không xác định"
+        display_name = (user.full_name if user else None) or attendance.snapshot_full_name or "Không xác định"
         items.append(
             NotificationItem(
                 id=f"att_failed_{attendance.id}",
@@ -412,32 +385,20 @@ def get_notifications_list(db: Session = Depends(get_db)):
         )
 
     # 2. Today's late check-ins
-    late_filter = or_(
-        Attendance.is_late_override == True,
-        and_(
-            Attendance.is_late_override.is_(None),
-            or_(
-                func.hour(Attendance.check_in_time) > _LATE_HOUR,
-                and_(
-                    func.hour(Attendance.check_in_time) == _LATE_HOUR,
-                    func.minute(Attendance.check_in_time) > _LATE_MINUTE,
-                ),
-            )
-        )
-    )
+    late_filter = (Attendance.is_late_override == True)
     late_rows = (
         db.query(Attendance, User)
         .outerjoin(User, Attendance.user_id == User.id)
         .filter(
-            func.date(Attendance.check_in_time) == today,
-            Attendance.status == AttendanceStatus.success,
+            Attendance.attendance_date == today,
+            Attendance.status.in_([AttendanceStatus.success, AttendanceStatus.present_incomplete]),
             late_filter,
         )
         .all()
     )
     for attendance, user in late_rows:
         dt: datetime = attendance.check_in_time
-        display_name = user.full_name if user else "Không xác định"
+        display_name = (user.full_name if user else None) or attendance.snapshot_full_name or "Không xác định"
         items.append(
             NotificationItem(
                 id=f"att_late_{attendance.id}",
@@ -475,7 +436,10 @@ def get_notifications_list(db: Session = Depends(get_db)):
     pending_schedules = (
         db.query(StudentSchedule, User)
         .join(User, StudentSchedule.user_id == User.id)
-        .filter(StudentSchedule.is_approved == False)
+        .filter(
+            StudentSchedule.is_approved == False,
+            StudentSchedule.is_active == True
+        )
         .order_by(StudentSchedule.created_at.desc())
         .all()
     )
@@ -514,7 +478,7 @@ def export_attendance_logs(db: Session = Depends(get_db)):
     rows = (
         db.query(Attendance, User)
         .outerjoin(User, Attendance.user_id == User.id)
-        .order_by(Attendance.check_in_time.desc())
+        .order_by(Attendance.id.desc())
         .all()
     )
 
@@ -529,8 +493,8 @@ def export_attendance_logs(db: Session = Depends(get_db)):
 
         for attendance, user in rows:
             dt: datetime = attendance.check_in_time
-            display_name = user.full_name if user else "Khong ro"
-            display_student_id = user.student_id if user else ""
+            display_name = (user.full_name if user else None) or attendance.snapshot_full_name or "Khong ro"
+            display_student_id = (user.student_id if user else None) or attendance.snapshot_student_id or ""
             status_label, _ = _build_status(attendance)
 
             writer.writerow([

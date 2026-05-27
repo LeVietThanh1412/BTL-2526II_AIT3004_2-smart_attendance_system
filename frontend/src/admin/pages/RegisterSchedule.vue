@@ -53,7 +53,7 @@
                 <button class="btn-success" @click="saveSchedule" :disabled="saving">
                   {{ saving ? 'Đang gửi...' : 'Gửi yêu cầu đổi lịch' }}
                 </button>
-                <div v-if="isAdmin" style="margin-top: 20px; display: flex; gap: 10px; margin-left: auto;">
+                <div v-if="isAdmin && hasPendingSchedule" style="margin-top: 20px; display: flex; gap: 10px; margin-left: auto;">
                   <button class="btn-primary" @click="approveSchedule">Duyệt lịch (Admin)</button>
                   <button class="btn-danger" @click="rejectSchedule">Không duyệt</button>
                 </div>
@@ -112,7 +112,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import AdminSidebar from '../AdminSidebar.vue'
 import TopHeader from '../TopHeader.vue'
@@ -128,6 +128,10 @@ const loading = ref(false)
 const saving = ref(false)
 const errorMessage = ref('')
 const showScheduleForm = ref(false)
+
+const hasPendingSchedule = computed(() => {
+  return scheduleHistory.value.some(hist => !hist.is_approved && hist.is_active)
+})
 
 onMounted(() => {
   if (route.query.student_id) {
@@ -232,6 +236,7 @@ const saveSchedule = async () => {
   try {
     await apiClient.post(`/schedule/${studentId.value}`, { schedules: payloadSchedules })
     alert('Gửi yêu cầu đổi lịch học thành công! Vui lòng chờ Giảng viên duyệt.')
+    await loadSchedule()
   } catch (error) {
     alert(error.response?.data?.detail || 'Lỗi khi lưu lịch học.')
   } finally {

@@ -403,11 +403,13 @@ const handleSubmit = async () => {
       // Đăng ký lịch học luôn
       try {
         await apiClient.post(`/schedule/${studentId.value}`, { schedules: payloadSchedules })
+        statusMessage.value = `Đăng ký khuôn mặt thành công: ${response.name} (${response.accepted_images} ảnh hợp lệ). Đã lưu lịch học. Vui lòng chờ Giảng viên duyệt.`
+        statusTone.value = 'success'
       } catch (err) {
         console.error("Lỗi đăng ký lịch", err)
+        statusMessage.value = `Khuôn mặt đã lưu NHƯNG LƯU LỊCH THẤT BẠI: ${err?.response?.data?.detail || 'Lỗi hệ thống'}. Vui lòng ấn nút Gửi lại hoặc lưu ở tab Đăng ký Ca học.`
+        statusTone.value = 'error'
       }
-
-      statusMessage.value = `Đăng ký thành công: ${response.name} (${response.accepted_images} ảnh hợp lệ). Vui lòng chờ Giảng viên duyệt.`
     } else {
       const response = await registerEmployeeVideo({
         student_id: studentId.value,
@@ -418,13 +420,14 @@ const handleSubmit = async () => {
       // Đăng ký lịch học luôn
       try {
         await apiClient.post(`/schedule/${studentId.value}`, { schedules: payloadSchedules })
+        statusMessage.value = `Đăng ký khuôn mặt thành công: ${response.name} (${response.frames_processed} khung hình hợp lệ). Đã lưu lịch học. Vui lòng chờ Giảng viên duyệt.`
+        statusTone.value = 'success'
       } catch (err) {
         console.error("Lỗi đăng ký lịch", err)
+        statusMessage.value = `Khuôn mặt đã lưu NHƯNG LƯU LỊCH THẤT BẠI: ${err?.response?.data?.detail || 'Lỗi hệ thống'}. Vui lòng ấn nút Gửi lại hoặc lưu ở tab Đăng ký Ca học.`
+        statusTone.value = 'error'
       }
-
-      statusMessage.value = `Đăng ký thành công: ${response.name} (${response.frames_processed} khung hình hợp lệ). Vui lòng chờ Giảng viên duyệt.`
     }
-    statusTone.value = 'success'
   } catch (error) {
     console.error('[v0] Lỗi đăng ký nhân sự:', error.message)
     const detail = error?.response?.data?.detail

@@ -93,7 +93,7 @@
                                     </ul>
                                     <h4 class="guide-title mt-15">⏰ Quy định ca học</h4>
                                     <div class="guide-time-rule">
-                                        Giờ học chính thức tính điểm danh từ <strong>07:30</strong> sáng. Hệ thống sẽ ghi nhận trạng thái <strong>Vào muộn</strong> nếu check-in sau thời gian này.
+                                        Hệ thống sẽ ghi nhận trạng thái <strong>Vào muộn</strong> nếu bạn check-in trễ hơn 15 phút so với giờ bắt đầu ca học của mình. Bạn có thể check-in sớm trước 30 phút.
                                     </div>
                                 </div>
                             </div>

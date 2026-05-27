@@ -59,6 +59,14 @@ async def lifespan(app: FastAPI):
                         conn.execute(text("ALTER TABLE student_schedules ADD COLUMN approved_at DATETIME NULL;"))
                     except Exception:
                         pass
+                    try:
+                        conn.execute(text("ALTER TABLE attendances ADD COLUMN snapshot_student_id VARCHAR(30) NULL;"))
+                    except Exception:
+                        pass
+                    try:
+                        conn.execute(text("ALTER TABLE attendances ADD COLUMN snapshot_full_name VARCHAR(255) NULL;"))
+                    except Exception:
+                        pass
             except Exception:
                 pass
 

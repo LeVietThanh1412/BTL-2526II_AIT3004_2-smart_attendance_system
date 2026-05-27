@@ -1,12 +1,15 @@
 \babel@toc {vietnamese}{}\relax 
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {1.1}{\ignorespaces So sánh các rào cản của phương pháp điểm danh truyền thống}}{6}{table.caption.5}%
-\contentsline {table}{\numberline {1.2}{\ignorespaces Phân quyền và luồng nghiệp vụ sử dụng hệ thống}}{7}{table.caption.6}%
+\contentsline {table}{\numberline {1.1}{\ignorespaces Đối tượng sử dụng và phạm vi nghiệp vụ}}{7}{table.caption.5}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {2.1}{\ignorespaces Bảng công nghệ chính của dự án}}{9}{table.caption.6}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces Mô tả các thực thể chính}}{15}{table.caption.13}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
+\contentsline {table}{\numberline {5.1}{\ignorespaces Danh sách dịch vụ chính trong Docker Compose}}{18}{table.caption.14}%
+\contentsline {table}{\numberline {5.2}{\ignorespaces Các biến môi trường quan trọng}}{19}{table.caption.15}%
 \addvspace {10\p@ }
-\addvspace {10\p@ }
-\contentsline {table}{\numberline {5.1}{\ignorespaces Bảng phân rã độ trễ (Latency) cho luồng điểm danh}}{19}{table.caption.15}%
-\contentsline {table}{\numberline {5.2}{\ignorespaces Đánh giá độ chính xác theo điều kiện môi trường}}{19}{table.caption.16}%
-\addvspace {10\p@ }
+\contentsline {table}{\numberline {6.1}{\ignorespaces Các kịch bản kiểm thử chức năng chính}}{20}{table.caption.16}%
+\contentsline {table}{\numberline {6.2}{\ignorespaces Bảng phân rã độ trễ cho luồng điểm danh}}{20}{table.caption.17}%
 \addvspace {10\p@ }

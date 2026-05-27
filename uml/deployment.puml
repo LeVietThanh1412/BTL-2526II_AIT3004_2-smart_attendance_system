@@ -3,57 +3,88 @@ skinparam node {
     BackgroundColor White
     BorderColor Black
 }
+skinparam componentStyle uml2
 skinparam linetype ortho
 skinparam nodesep 40
 skinparam ranksep 50
 
-node "Client Device" <<PC / Smartphone>> {
-    artifact "Web Browser" as Browser
+node "Client Devices" <<Smartphone / PC / Camera>> {
+    component "Web Browser" as Browser
 }
 
-node "Server / VM (Linux)" <<Docker Host>> {
+node "Server (Ubuntu / Arch Linux OS)" <<Physical / VM>> {
     
-    node "Nginx Container" <<Docker>> {
-        artifact "nginx.conf"
-        artifact "React Static Build"
-    }
+    node "Docker Engine" <<Runtime>> {
+        
+        frame "Bridge Network: attendance_net" {
+            
+            node "attendance-nginx:v6" <<Container>> as NginxCont {
+                artifact "nginx.conf"
+                artifact "Vue/Vite dist/"
+            }
 
-    node "Backend Container" <<Docker>> {
-        artifact "uvicorn server\n(FastAPI)"
-    }
+            node "attendance-backend:v6" <<Container>> as BackendCont {
+                artifact "uvicorn (FastAPI)"
+            }
 
-    node "Worker Container" <<Docker>> {
-        artifact "celery daemon"
-        artifact "AI Models\n(MTCNN/DeepFace)"
-    }
+            node "attendance-worker:v6" <<Container>> as WorkerCont {
+                artifact "celery worker (-c 1)"
+                artifact "retinaface.h5 / arcface"
+            }
+            
+            node "attendance-backup:v6" <<Container>> as BackupCont {
+                artifact "cron & bash scripts"
+            }
 
-    node "MySQL Container" <<Docker>> {
-        artifact "mysqld"
-    }
+            node "mysql:8.0" <<Container>> as MySQLCont {
+                artifact "mysqld"
+            }
 
-    node "Redis Container" <<Docker>> {
-        artifact "redis-server"
+            node "redis:alpine" <<Container>> as RedisCont {
+                artifact "redis-server"
+            }
+            
+            node "qdrant/qdrant" <<Container>> as QdrantCont {
+                artifact "qdrant daemon"
+            }
+
+            node "minio/minio" <<Container>> as MinIOCont {
+                artifact "minio server"
+            }
+        }
     }
     
-    node "Qdrant Container" <<Docker>> {
-        artifact "qdrant"
-    }
-
-    node "MinIO Container" <<Docker>> {
-        artifact "minio server"
+    ' Docker Volumes Mapping
+    database "Docker Volumes (Host Storage)" as Volumes {
+        folder "mysql_data"
+        folder "qdrant_data"
+        folder "minio_data"
+        folder "deepface_data"
     }
 }
 
-' Connections
-Browser .right.> [Nginx Container] : HTTP (Port 80)
-[Nginx Container] .right.> [Backend Container] : Proxy Pass\n(Internal Port 8000)
+cloud "AWS S3 / Remote Cloud" as CloudS3
 
-[Backend Container] ..> [MySQL Container] : TCP (Port 3306)
-[Backend Container] ..> [Redis Container] : TCP (Port 6379)
-[Backend Container] ..> [MinIO Container] : TCP (Port 9000)
+' External Connections
+Browser .right.> NginxCont : HTTP (Port 8080)
+BackupCont .down.> CloudS3 : Đồng bộ (Disaster Recovery)
 
-[Worker Container] ..> [Redis Container] : TCP (Port 6379)
-[Worker Container] ..> [MinIO Container] : TCP (Port 9000)
-[Worker Container] ..> [Qdrant Container] : TCP (Port 6333)
+' Internal Network Connections
+NginxCont .down.> BackendCont : Proxy Pass (Port 8000)
+
+BackendCont .down.> MySQLCont : TCP 3306
+BackendCont .down.> RedisCont : TCP 6379
+BackendCont .down.> MinIOCont : TCP 9000
+BackendCont .down.> QdrantCont : TCP 6333
+
+WorkerCont .up.> RedisCont : Lấy Job (TCP 6379)
+WorkerCont .up.> MinIOCont : Tải ảnh (TCP 9000)
+WorkerCont .up.> QdrantCont : Search Vector (TCP 6333)
+
+' Volume Mounts
+MySQLCont -down- mysql_data : Mount
+QdrantCont -down- qdrant_data : Mount
+MinIOCont -down- minio_data : Mount
+WorkerCont -down- deepface_data : Mount (.deepface)
 
 @enduml

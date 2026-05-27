@@ -26,7 +26,7 @@
 \clubpenalty=10000
 \widowpenalty=10000
 
-\graphicspath{{../uml/}}
+\graphicspath{{../uml/}{../demo/}}
 \onehalfspacing
 
 % Allow line breaks in \texttt
@@ -60,62 +60,61 @@
 \definecolor{backcolour}{rgb}{0.95,0.95,0.92}
 
 \lstdefinestyle{mystyle}{
-    backgroundcolor=\color{backcolour},   
+    backgroundcolor=\color{backcolour},
     commentstyle=\color{codegreen},
     keywordstyle=\color{magenta},
     numberstyle=\tiny\color{codegray},
     stringstyle=\color{codepurple},
     basicstyle=\ttfamily\footnotesize,
-    breakatwhitespace=false,         
-    breaklines=true,                 
-    captionpos=b,                    
-    keepspaces=true,                 
-    numbers=left,                    
-    numbersep=5pt,                  
-    showspaces=false,                
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
     showstringspaces=false,
-    showtabs=false,                  
+    showtabs=false,
     tabsize=2
 }
 
 \lstset{style=mystyle, escapeinside={(*}{*)}}
+
+% API path helper to allow clean line breaks in tables
+\newcommand{\apipath}[1]{\begingroup\small\nolinkurl{#1}\endgroup}
 
 \begin{document}
 
 \begin{titlepage}
     \centering
     \vspace*{1cm}
-    
+
     \Large \textbf{ĐẠI HỌC QUỐC GIA HÀ NỘI} \\
     \Large \textbf{TRƯỜNG ĐẠI HỌC CÔNG NGHỆ (UET)} \\
-    \vspace{1.5cm}
-    
-    % \includegraphics[width=4cm]{uet_logo.png} 
-    \vspace{1.5cm}
-    
-    \Large \textbf{BÁO CÁO BÀI TẬP LỚN MÔN HỌC} \\
-    \vspace{0.5cm}
+    \vspace{1.2cm}
+
+    \Large \textbf{BÁO CÁO MÔN HỌC} \\
+    \vspace{0.4cm}
     \huge \textbf{SMART ATTENDANCE SYSTEM} \\
-    \Large \textbf{(Hệ Thống Điểm Danh Thông Minh)} \\
-    
-    \vspace{1.5cm}
-    
+    \Large \textbf{Hệ Thống Điểm Danh Thông Minh} \\
+    \vspace{0.8cm}
+
     \begin{center}
-        \textbf{Commit Hash (Latest):} \texttt{c1facc99dd82b177d66c80de699db5ec25f20202} \\
-        \small \textit{(Kho lưu trữ mã nguồn mở trên GitHub)}
+        \textbf{Phiên bản:} \texttt{v1.0.3} \\
+        \textbf{Ngày tạo:} \texttt{\today}
     \end{center}
-    
-    \vspace{1.5cm}
-    
+
+    \vspace{1.0cm}
+
     \begin{flushleft}
         \Large
         \textbf{Giảng viên hướng dẫn:} \\
         \vspace{0.3cm}
-        \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} c c c @{}}
+        \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} c c c @{} }
             \Large Đào Việt Anh & \Large Lương Sơn Bá & \Large Trịnh Ngọc Huỳnh
         \end{tabular*}
         \vspace{0.8cm}
-        
+
         \textbf{Nhóm sinh viên thực hiện (Nhóm 9):} \\
         \normalsize
         1. 24022454 Lê Việt Thành (Trưởng nhóm - DevOps Lead) \\
@@ -123,9 +122,9 @@
         3. 24022364 Tạ Duy Khánh (AI/ML Engineer) \\
         4. 24022394 Nguyễn Đức Mạnh (Frontend Developer) \\
     \end{flushleft}
-    
+
     \vfill
-    
+
     \Large Hà Nội, Tháng 05/2026
 \end{titlepage}
 
@@ -153,264 +152,280 @@ JWT & JSON Web Token \\
 \end{longtable}
 \newpage
 
-\chapter{Giới thiệu dự án}
+\chapter{Tổng quan dự án}
 
-\section{Tổng quan \& Đặt vấn đề}
-Trong kỷ nguyên chuyển đổi số giáo dục, việc quản lý sự chuyên cần của sinh viên đóng vai trò thiết yếu để đảm bảo chất lượng đào tạo. Phương pháp điểm danh truyền thống thông qua việc gọi tên hoặc quét thẻ RFID đang bộc lộ nhiều điểm yếu nghiêm trọng:
+\section{Bối cảnh và bài toán}
+Chuyển đổi số trong giáo dục đòi hỏi các hệ thống quản lý học vụ phải chính xác, minh bạch và giảm tối đa thao tác thủ công. Các phương pháp điểm danh truyền thống (gọi tên, thẻ từ, vân tay) đều gặp hạn chế về thời gian, chi phí và khả năng gian lận. Dự án \textbf{Smart Attendance System} hướng tới một quy trình điểm danh tự động hóa bằng nhận diện khuôn mặt, bảo đảm xác minh đúng danh tính theo mã sinh viên.
 
-\begin{table}[H]
-\centering
-\begin{tabularx}{\textwidth}{|l|X|X|}
-\hline
-\textbf{Phương pháp} & \textbf{Nhược điểm chính} & \textbf{Tác động tiêu cực} \\ \hline
-\textbf{Gọi tên thủ công} & Tốn 10-15 phút/buổi học & Gây lãng phí thời gian giảng dạy, dễ sai sót khi tổng hợp bằng tay. \\ \hline
-\textbf{Quét thẻ từ} & Tốn chi phí phát hành thẻ & Thường xuyên xảy ra tình trạng quên thẻ, mất thẻ hoặc \textbf{điểm danh hộ}. \\ \hline
-\textbf{Quét vân tay} & Yêu cầu tiếp xúc vật lý & Tốc độ chậm, gây ùn tắc ở cửa lớp, không đảm bảo vệ sinh. \\ \hline
-\end{tabularx}
-\caption{So sánh các rào cản của phương pháp điểm danh truyền thống}
-\end{table}
-
-Để giải quyết triệt để các vấn đề trên, sự can thiệp của \textbf{Trí tuệ nhân tạo (AI)} và \textbf{Thị giác máy tính (Computer Vision)} là giải pháp tất yếu. Khuôn mặt là đặc điểm sinh trắc học duy nhất, không thể cho mượn hay làm giả dễ dàng. Dự án \textbf{Smart Attendance System} ra đời nhằm tự động hóa quy trình này một cách minh bạch, cho phép sinh viên xác thực 1-1 dựa trên Mã sinh viên và khuôn mặt thực tế.
-
-\section{Mục tiêu dự án}
-Dự án được phát triển với các Mục tiêu Cốt lõi (Key Objectives) sau:
+\section{Mục tiêu}
 \begin{itemize}
-    \item \textbf{Khử bỏ hoàn toàn gian lận:} Đảm bảo 100\% sinh viên có mặt thực tế thông qua việc trích xuất vector khuôn mặt. Cơ chế \textbf{xác minh 1-1 (Verification)} theo Mã sinh viên loại bỏ rủi ro nhận diện nhầm chéo.
-    \item \textbf{Đăng ký đa phương thức:} Hỗ trợ đăng ký khuôn mặt tự động hóa qua nhiều ảnh tĩnh (tối thiểu 3 ảnh) hoặc trích xuất tự động từ luồng video.
-    \item \textbf{Kiến trúc Scalable:} Thiết kế hệ thống theo định hướng \textbf{Microservices}, tích hợp hệ thống hàng đợi Celery + Redis để đáp ứng lưu lượng truy cập cao.
+    \item \textbf{Xác minh 1-1 theo mã sinh viên}: hạn chế nhầm lẫn và loại bỏ điểm danh hộ.
+    \item \textbf{Tối ưu thời gian}: giảm thời gian điểm danh xuống mức giây cho mỗi lượt.
+    \item \textbf{Kiến trúc mở rộng}: tách luồng AI ra khỏi API bằng Celery/Redis để xử lý đồng thời nhiều yêu cầu.
+    \item \textbf{Quản trị rõ ràng}: hỗ trợ duyệt sinh viên, duyệt lịch học, sửa trạng thái điểm danh, xuất báo cáo.
 \end{itemize}
 
-\section{Phạm vi dữ liệu \& Đối tượng sử dụng}
-Hệ thống xử lý hai luồng nghiệp vụ chính: \textit{Đăng ký hồ sơ sinh viên} và \textit{Điểm danh \& Quản trị}.
+\section{Phạm vi và đối tượng sử dụng}
+Hệ thống xử lý hai luồng nghiệp vụ chính: \textit{Đăng ký hồ sơ sinh viên} và \textit{Điểm danh \\ Quản trị}.
 
 \begin{table}[H]
 \centering
 \begin{tabularx}{\textwidth}{|l|X|X|}
 \hline
 \textbf{Đối tượng} & \textbf{Nghiệp vụ cốt lõi} & \textbf{Quyền hạn tương tác} \\ \hline
-\textbf{Sinh viên} & Đăng ký khuôn mặt & Gửi nhiều ảnh hoặc video để Backend tự động trích xuất vector embedding. \\ \hline
-\textbf{Sinh viên} & Check-in hàng ngày & Bắt buộc nhập Mã sinh viên (student\_id), bắt webcam và gửi ảnh điểm danh. \\ \hline
-\textbf{Quản trị} & Quản trị \& Theo dõi & Sử dụng Dashboard xem thống kê, nhật ký phân trang, huy hiệu thông báo ngoại lệ. \\ \hline
+\textbf{Sinh viên} & Đăng ký khuôn mặt, đăng ký lịch học & Gửi ảnh/video đăng ký, cập nhật lịch học, điểm danh check-in/check-out. \\ \hline
+\textbf{Giảng viên/Admin} & Duyệt sinh viên, duyệt lịch học, quản trị điểm danh & Xem thống kê, nhật ký, sửa trạng thái, xuất CSV. \\ \hline
 \end{tabularx}
-\caption{Phân quyền và luồng nghiệp vụ sử dụng hệ thống}
+\caption{Đối tượng sử dụng và phạm vi nghiệp vụ}
 \end{table}
 
-\chapter{Cơ sở lý thuyết \& Phân tích Công nghệ}
+\chapter{Yêu cầu và công nghệ}
 
-\section{Pipeline Nhận diện khuôn mặt (Face Recognition Pipeline)}
-Quá trình xác thực danh tính trong hệ thống sử dụng framework \textbf{DeepFace} thông qua một pipeline chuyên sâu:
-\begin{enumerate}
-    \item \textbf{Phát hiện \& Căn chỉnh (Detection \& Alignment)}: Sử dụng \textbf{MTCNN/RetinaFace} để phát hiện khuôn mặt và tự động căn chỉnh góc xoay.
-    \item \textbf{Trích xuất Đặc trưng (Vector Embedding)}: Thuật toán \textbf{ArcFace} biến đổi ma trận ảnh 2D thành một Vector không gian 512 chiều tối ưu hóa khoảng cách Euclide.
-    \item \textbf{Xác minh 1-1 (1-to-1 Verification)}: So khớp dựa trên \textbf{Cosine Similarity} với ngưỡng cài đặt.
-\end{enumerate}
-
-\section{Công nghệ Cơ sở dữ liệu: Tại sao lại là Vector DB?}
-Trong bài toán nhận diện khuôn mặt, các cơ sở dữ liệu quan hệ (SQL) hay NoSQL thông thường không thể thực hiện tính toán độ tương đồng (Similarity Search) giữa hai mảng float 512 chiều một cách hiệu quả. Việc quét toàn bộ DB (Full Table Scan) để tính khoảng cách bằng code Python sẽ gây ra hiện tượng nghẽn cổ chai. 
-
-Đó là lý do dự án sử dụng \textbf{Qdrant} làm Vector Database chuyên dụng. Nhờ thuật toán lập chỉ mục \textbf{HNSW} (Hierarchical Navigable Small World), Qdrant có khả năng tìm kiếm vector với độ phức tạp $O(\log N)$, duy trì thời gian truy vấn $< 20$ms dù có hàng triệu bản ghi.
-
-\section{Kiến trúc Xử lý Bất đồng bộ (Celery \& Redis)}
-Bài toán AI (GPU/CPU Bound) và bài toán Web (I/O Bound) có tính chất xung đột nhau. Nếu tích hợp trực tiếp AI vào luồng API của FastAPI, khi có hàng chục sinh viên cùng điểm danh, server sẽ bị block và phản hồi lỗi timeout. 
-Giải pháp là sử dụng \textbf{Mô hình Bất đồng bộ (Asynchronous Architecture)}:
+\section{Yêu cầu chức năng}
 \begin{itemize}
-    \item \textbf{FastAPI (Backend)}: Đóng vai trò \textit{Producer}. Chỉ nhận ảnh, lưu nhanh vào kho và đẩy message vào Redis.
-    \item \textbf{Celery (Worker)}: Đóng vai trò \textit{Consumer}. Xếp hàng rút các tác vụ từ Redis, đưa vào Model phân tích, và ghi trả kết quả.
+    \item Đăng ký sinh viên bằng ảnh hoặc video, lưu vector khuôn mặt.
+    \item Quản lý lịch học theo ca, có cơ chế duyệt/huỷ.
+    \item Điểm danh 1-1 theo mã sinh viên, hỗ trợ check-in/check-out đa phiên.
+    \item Phát hiện đi muộn theo ngưỡng thời gian, cảnh báo và lưu log.
+    \item Dashboard thống kê, nhật ký điểm danh, thông báo và xuất báo cáo CSV.
+    \item Quản trị người dùng và quyền truy cập thông qua JWT.
 \end{itemize}
 
-\section{Công nghệ Lưu trữ Object Storage (MinIO)}
-Để giải quyết bài toán lưu trữ hàng chục ngàn bức ảnh (ảnh gốc lúc đăng ký, ảnh chụp lúc điểm danh), việc lưu nhị phân vào MySQL hoặc thư mục máy chủ (File System) là khó mở rộng và kém an toàn.
-Hệ thống sử dụng \textbf{MinIO} - một hạ tầng Object Storage tương thích hoàn toàn chuẩn AWS S3. Nhờ đó, việc quản lý ảnh được tách bạch, Backend chỉ việc lưu URL, giúp CSDL lõi luôn nhẹ nhàng.
+\section{Yêu cầu phi chức năng}
+\begin{itemize}
+    \item Độ trễ xử lý thấp (mục tiêu dưới 2 giây mỗi lượt điểm danh trong môi trường demo).
+    \item Khả năng mở rộng bằng cách tăng số lượng worker.
+    \item Dữ liệu ảnh và vector lưu tách rời, bảo đảm an toàn và dễ sao lưu.
+    \item Dễ triển khai với Docker Compose, cấu hình bằng biến môi trường.
+\end{itemize}
 
-\chapter{Phân tích \& Thiết kế Hệ thống}
+\section{Công nghệ sử dụng}
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|X|}
+\hline
+\textbf{Tầng} & \textbf{Công nghệ} & \textbf{Vai trò} \\ \hline
+Frontend & Vue 3 + Vite & Giao diện điểm danh và dashboard quản trị. \\ \hline
+Backend & FastAPI + SQLAlchemy & API xử lý nghiệp vụ, auth, thống kê. \\ \hline
+AI Worker & Celery + DeepFace & Trích xuất vector, so khớp khuôn mặt. \\ \hline
+Vector DB & Qdrant & Lưu và truy vấn vector theo student\_id. \\ \hline
+RDBMS & MySQL 8.0 & Lưu thông tin sinh viên, lịch học, log điểm danh. \\ \hline
+Cache/Queue & Redis & Hàng đợi Celery và cache. \\ \hline
+Object Storage & MinIO & Lưu ảnh gốc và ảnh điểm danh. \\ \hline
+Gateway & Nginx & Reverse proxy cho frontend và API. \\ \hline
+Deploy & Docker Compose & Đóng gói, triển khai nhanh toàn hệ thống. \\ \hline
+\end{tabularx}
+\caption{Bảng công nghệ chính của dự án}
+\end{table}
 
-\section{Thiết kế Kiến trúc Tổng thể (System Architecture)}
-Hệ thống được thiết kế theo tư duy \textbf{Containerized Microservices}, bao gồm \textbf{8 containers độc lập} được điều phối bởi \textbf{Docker Compose} (Backend, AI Worker, Nginx Gateway, MySQL, Qdrant, Redis, MinIO và Backup Service).
+\chapter{Phân tích và thiết kế}
 
+\section{Use Case}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{usecase.png}
+    \caption{Sơ đồ Use Case hệ thống}
+    \label{fig:usecase}
+\end{figure}
+
+\section{Kiến trúc tổng thể}
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{component.png}
-    \caption{Sơ đồ thành phần (Component Diagram) của hệ thống}
+    \caption{Sơ đồ thành phần (Component Diagram)}
     \label{fig:component}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{deployment.png}
-    \caption{Sơ đồ triển khai (Deployment Diagram) với Docker Orchestration}
+    \caption{Sơ đồ triển khai (Deployment Diagram) với Docker}
     \label{fig:deployment}
 \end{figure}
 
-\section{Mô hình Hàng đợi và Điểm danh (Sequence \& Activity)}
+\section{Luồng xử lý}
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{sequency.png}
-    \caption{Sơ đồ tuần tự (Sequence Diagram) mô tả nghiệp vụ điểm danh qua Celery}
+    \caption{Sơ đồ tuần tự cho luồng đăng ký/điểm danh}
     \label{fig:sequence}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{activity_diem_danh.png}
-    \caption{Sơ đồ hoạt động (Activity Diagram) thể hiện logic xác minh 1-1}
+    \caption{Sơ đồ hoạt động cho luồng điểm danh 1-1}
     \label{fig:activity}
 \end{figure}
 
-\section{Thiết kế Cơ sở Dữ liệu (ERD)}
+\section{Thiết kế cơ sở dữ liệu}
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{csdl.png}
-    \caption{Sơ đồ Cơ sở dữ liệu (ERD)}
+    \caption{Sơ đồ ERD cơ sở dữ liệu}
     \label{fig:erd}
 \end{figure}
 
-\chapter{Hiện thực hóa: Code \& Quality Assurance}
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Bảng/Collection} & \textbf{Mô tả} \\ \hline
+users & Thông tin sinh viên, trạng thái duyệt. \\ \hline
+student\_schedules & Lịch học theo ngày/ca, trạng thái duyệt và lịch sử đổi ca. \\ \hline
+attendances & Log điểm danh (check-in/check-out), trạng thái, độ tin cậy. \\ \hline
+face\_embeddings (Qdrant) & Vector khuôn mặt 512 chiều, payload student\_id. \\ \hline
+\end{tabularx}
+\caption{Mô tả các thực thể chính}
+\end{table}
 
-\section{Cấu trúc Source Code (Monorepo)}
-Toàn bộ dự án được quản lý trong một Repository duy nhất (Monorepo) để thống nhất cấu hình và CI/CD:
+\chapter{Hiện thực hóa hệ thống}
+
+\section{Cấu trúc mã nguồn}
 \begin{lstlisting}[language=bash, caption={Tổ chức thư mục dự án theo chuẩn Microservices}]
 .
-|-- docker-compose.yml     # Orchestrate services (Backend, Worker, DBs...)
-|-- .env                   # (*Quản lý biến môi trường bảo mật*)
-|-- backend/               # FastAPI Backend Server (I/O Bound)
-|-- worker/                # Celery Background Worker (CPU Bound)
-|-- frontend/              # Vue/Vite Single Page Application
-|-- nginx/                 # API Gateway (Reverse Proxy)
-|-- backup/                # (*Service chạy ngầm đồng bộ lưu trữ từ xa*)
+|-- docker-compose.yml
+|-- docker-compose-network.yml
+|-- backend/
+|-- worker/
+|-- frontend/
+|-- nginx/
+|-- backup/
+|-- uml/
+|-- report/
 \end{lstlisting}
 
-\section{Lõi Trí Tuệ Nhân Tạo: Face Engine}
-Module trong container Worker là trái tim AI của hệ thống. Ngay từ lúc khởi động container, Model \textbf{ArcFace} và bộ dò tìm khuôn mặt \textbf{RetinaFace} đã được nạp sẵn vào RAM thông qua cơ chế Pre-warming. Nhờ đó, hệ thống loại bỏ hoàn toàn độ trễ khởi động (cold-start) trong mỗi lần xử lý tác vụ, đem lại kết quả vector 512 chiều mượt mà.
+\section{Backend API}
+Hệ thống API được tổ chức theo chuẩn REST, nhóm theo các module: Auth, Members, Schedule, Attendance, Dashboard.
 
-\section{Truy vấn Vector tốc độ cao với Qdrant}
-Thay vì gọi lệnh search 1-N quét toàn bộ sinh viên, hệ thống đảm bảo an toàn truy cập bằng việc \textbf{Lọc cứng theo ID} (Filter). Điều này biến bài toán từ \textbf{Nhận dạng} thành \textbf{Xác minh (1-to-1 Verification)}:
+\begin{longtable}{|>{\raggedright\arraybackslash}p{0.45\textwidth}|>{\raggedright\arraybackslash}p{0.50\textwidth}|}
+\hline
+\textbf{Endpoint} & \textbf{Chức năng} \\ \hline
+\apipath{/api/v1/auth/login} & Đăng nhập admin, trả JWT. \\ \hline
+\apipath{/api/v1/members/register} & Đăng ký sinh viên bằng ảnh base64. \\ \hline
+\apipath{/api/v1/members/register-video} & Đăng ký sinh viên bằng video. \\ \hline
+\apipath{/api/v1/members} & Danh sách sinh viên. \\ \hline
+\apipath{/api/v1/members/{student_id}/approve} & Duyệt sinh viên. \\ \hline
+\apipath{/api/v1/members/{student_id} (DELETE)} & Xóa sinh viên. \\ \hline
+\apipath{/api/v1/schedule/{student_id}} & Xem/cập nhật lịch học. \\ \hline
+\apipath{/api/v1/schedule/{student_id}/approve} & Duyệt lịch học. \\ \hline
+\apipath{/api/v1/schedule/{student_id}/reject} & Từ chối lịch học. \\ \hline
+\apipath{/api/v1/schedule/{student_id}/history} & Lịch sử đổi ca. \\ \hline
+\apipath{/api/v1/attendance/check-in} & Điểm danh (check-in hoặc check-out). \\ \hline
+\apipath{/api/v1/attendance/{attendance_id}/override} & Sửa trạng thái điểm danh. \\ \hline
+\apipath{/api/v1/dashboard/statistics} & Thống kê điểm danh trong ngày. \\ \hline
+\apipath{/api/v1/dashboard/recent-activities} & Hoạt động gần đây. \\ \hline
+\apipath{/api/v1/dashboard/attendance-logs} & Nhật ký điểm danh phân trang. \\ \hline
+\apipath{/api/v1/dashboard/notifications} & Đếm thông báo. \\ \hline
+\apipath{/api/v1/dashboard/notifications/list} & Danh sách thông báo. \\ \hline
+\apipath{/api/v1/dashboard/export-attendance} & Xuất CSV nhật ký điểm danh. \\ \hline
+\apipath{/health} & Kiểm tra trạng thái dịch vụ. \\ \hline
+\end{longtable}
 
-\begin{lstlisting}[language=Python, caption={Cơ chế Lọc cứng 1-1 trên Qdrant}]
-# 1-to-1 Comparison: Strictly filter by student_id
-query_filter = Filter(
-    must=[FieldCondition(key="student_id", match=MatchValue(value=student_id))]
-)
-results = self.qdrant.search(
-    collection_name=self.collection_name, query_vector=vector, 
-    query_filter=query_filter, limit=1
-)
-\end{lstlisting}
-
-\section{Đảm bảo chất lượng hệ thống (Quality Assurance \& Error Handling)}
-Để tránh dữ liệu rác làm hỏng Vector DB, hệ thống áp dụng chiến lược kiểm soát chất lượng nghiêm ngặt:
+\section{Luồng điểm danh và xử lý đa phiên}
+Luồng điểm danh sử dụng cơ chế xác minh 1-1 theo mã sinh viên. Backend kiểm tra lịch học đã duyệt, gửi ảnh lên MinIO, đẩy tác vụ tới Celery Worker, nhận kết quả khớp để ghi log. Một ngày có thể có nhiều phiên học, vì vậy hệ thống hỗ trợ \textit{multi-session}:
 \begin{itemize}
-    \item \textbf{Cờ enforce\_detection}: Ép buộc thư viện DeepFace trả ngoại lệ nếu bức ảnh quá tối, bị mờ, hoặc không hề chứa mặt người. Worker sẽ gửi lại trạng thái "Không tìm thấy khuôn mặt" ra Frontend.
-    \item \textbf{Kiểm soát Transaction}: Các tác vụ thêm, sửa, xóa trên MySQL và Qdrant được đồng bộ hóa. Nếu thêm vector vào Qdrant thất bại, record trong MySQL sẽ lập tức bị rollback.
+    \item \textbf{Check-in}: được phép từ 30 phút trước ca đến khi ca kết thúc.
+    \item \textbf{Check-out}: chỉ hợp lệ trong 30 phút cuối ca và 30 phút sau khi ca kết thúc.
+    \item \textbf{Đi muộn}: nếu check-in sau 15 phút kể từ thời điểm bắt đầu ca.
 \end{itemize}
 
-\chapter{Kết quả Thực nghiệm \& Đánh giá Hiệu năng (KPIs)}
+\section{AI Worker và Vector DB}
+Worker sử dụng DeepFace (ArcFace) để trích xuất vector 512 chiều, kết hợp bộ dò tìm mặt MTCNN. Vector được so khớp trên Qdrant với bộ lọc \texttt{student\_id}, tránh quét toàn bộ dữ liệu và giữ độ chính xác cao.
 
-\section{Trực quan hóa Giao diện (Demo)}
-Hệ thống được xây dựng hoàn chỉnh với giao diện Vue.js, phân quyền qua JWT.
+\section{Frontend}
+Giao diện Vue 3 gồm hai vai trò: Sinh viên (check-in/check-out, nhập mã sinh viên) và Admin (dashboard thống kê, duyệt sinh viên, duyệt lịch học, xem log, xuất CSV).
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.75\textwidth]{../demo/dang_nhap_admin.png}
-    \caption{Giao diện Đăng nhập dành cho Quản trị viên (Admin Auth)}
-    \label{fig:admin_login}
-\end{figure}
+\chapter{Triển khai và vận hành}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.9\textwidth]{../demo/dashbroad.png}
-    \caption{Giao diện Dashboard Quản trị và Thống kê Điểm danh}
-    \label{fig:dashboard}
-\end{figure}
+\section{Docker Compose và dịch vụ}
+Hệ thống đóng gói 8 container độc lập:
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|l|}
+\hline
+\textbf{Service} & \textbf{Chức năng} & \textbf{Cổng} \\ \hline
+nginx & Reverse proxy, phục vụ frontend & 8080 \\ \hline
+backend & API FastAPI & 8000 (internal) \\ \hline
+worker & Celery Worker AI & - \\ \hline
+mysql & CSDL quan hệ & 3307 \\ \hline
+redis & Queue/Cache & 6379 \\ \hline
+qdrant & Vector DB & 6333 \\ \hline
+minio & Object Storage & 9000/9001 \\ \hline
+backup & Sao lưu định kỳ & - \\ \hline
+\end{tabularx}
+\caption{Danh sách dịch vụ chính trong Docker Compose}
+\end{table}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{../demo/dang_ki_diem_danh.png}
-    \caption{Giao diện Đăng ký Khuôn mặt và Điểm danh cho Sinh viên}
-    \label{fig:checkin}
-\end{figure}
+\section{Cấu hình môi trường}
+Các biến môi trường quan trọng nằm trong file \texttt{.env}:
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Biến} & \textbf{Ý nghĩa} \\ \hline
+DATABASE\_URL / MYSQL\_* & Thông tin kết nối MySQL. \\ \hline
+QDRANT\_URL, QDRANT\_COLLECTION & Kết nối và tên collection Qdrant. \\ \hline
+MINIO\_ENDPOINT, MINIO\_ACCESS\_KEY, MINIO\_SECRET\_KEY & Kết nối MinIO. \\ \hline
+FACE\_MATCH\_THRESHOLD & Ngưỡng khớp khuôn mặt. \\ \hline
+DEEPFACE\_MODEL\_NAME, FACE\_DETECTOR\_BACKEND & Cấu hình mô hình và detector. \\ \hline
+ADMIN\_USERNAME, ADMIN\_PASSWORD, JWT\_SECRET & Tài khoản quản trị và khóa JWT. \\ \hline
+TIME\_LATE & Ngưỡng xác định đi muộn. \\ \hline
+\end{tabularx}
+\caption{Các biến môi trường quan trọng}
+\end{table}
 
-\section{Đánh giá Hiệu suất (Performance Metrics)}
+\section{Sao lưu dữ liệu}
+Container \texttt{backup} thực hiện sao lưu định kỳ MySQL, snapshot Qdrant và đồng bộ ảnh từ MinIO về thư mục \texttt{local\_backups/}. Chính sách retention mặc định giữ 7 ngày gần nhất để tối ưu dung lượng.
 
-\subsection{1. Tốc độ xử lý (Latency Analysis)}
-Hệ thống được benchmark trong môi trường phân tán bằng Docker Compose:
+\chapter{Kiểm thử và đánh giá}
 
+\section{Kịch bản kiểm thử}
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Tình huống} & \textbf{Kỳ vọng} \\ \hline
+Đúng người, đúng student\_id & Điểm danh thành công. \\ \hline
+Sai người, đúng student\_id & Thất bại, trả về lý do không khớp. \\ \hline
+Đúng người, sai student\_id & Thất bại, trả về điểm thấp. \\ \hline
+Thiếu student\_id & Trả lỗi 400. \\ \hline
+student\_id chưa đăng ký vector & Trả lỗi 404. \\ \hline
+Check-out trước giờ cho phép & Trả lỗi không hợp lệ. \\ \hline
+\end{tabularx}
+\caption{Các kịch bản kiểm thử chức năng chính}
+\end{table}
+
+\section{Đánh giá hiệu năng (tham khảo)}
 \begin{table}[H]
 \centering
 \begin{tabularx}{\textwidth}{|X|c|X|}
 \hline
 \textbf{Công đoạn xử lý} & \textbf{Thời gian (ms)} & \textbf{Ghi chú} \\ \hline
-FastAPI Upload to MinIO & $\sim 50$ ms & Tốc độ I/O lưu trữ mạng cục bộ. \\ \hline
-Celery \& Face Inference & $\sim 800$ ms & Trích xuất AI (sau khi nạp model vào RAM). \\ \hline
-Qdrant 1-to-1 Verification & $\mathbf{\sim 20}$ \textbf{ms} & Lọc cứng \texttt{student\_id} và tính điểm Cosine. \\ \hline
-\textbf{Tổng độ trễ End-to-End} & $\mathbf{< 1.5}$ \textbf{giây} & Phản hồi nhanh chóng tới Client qua WebSocket/Redis. \\ \hline
+FastAPI upload MinIO & $\sim 50$ & I/O nội bộ. \\ \hline
+Celery + DeepFace inference & $\sim 800$ & Sau khi pre-warm model. \\ \hline
+Qdrant 1-1 verification & $\sim 20$ & Lọc theo student\_id. \\ \hline
+Tổng end-to-end & $< 1.5$ giây & Môi trường demo nội bộ. \\ \hline
 \end{tabularx}
-\caption{Bảng phân rã độ trễ (Latency) cho luồng điểm danh}
+\caption{Bảng phân rã độ trễ cho luồng điểm danh}
 \end{table}
 
-\subsection{2. Độ chính xác (Accuracy Metrics)}
-Dựa trên kết quả nghiệm thu nội bộ của nhóm với tập dữ liệu $\sim$200 ảnh khuôn mặt trong các điều kiện khác nhau:
-
-\begin{table}[H]
-\centering
-\begin{tabularx}{\textwidth}{|X|c|c|c|}
-\hline
-\textbf{Điều kiện ánh sáng} & \textbf{Precision (Đúng)} & \textbf{False Negative} & \textbf{False Positive} \\ \hline
-\textbf{Tiêu chuẩn (Phòng học)} & \textbf{99.1\%} & 0.9\% & 0.0\% \\ \hline
-\textbf{Ngược sáng / Tối} & 92.5\% & 7.5\% & 0.0\% \\ \hline
-\end{tabularx}
-\caption{Đánh giá độ chính xác theo điều kiện môi trường}
-\end{table}
-
-Nhờ cơ chế xác minh 1-1 theo ID và thiết lập Threshold khắt khe (0.7), hệ thống duy trì tỷ lệ \textbf{False Positive (Nhận diện sai người) ở mức 0\%}, đảm bảo an ninh điểm danh tuyệt đối.
-
-\chapter{Kết luận \& Hướng phát triển}
-
-\section{Kết luận chung}
-Dự án \textbf{Smart Attendance System} đã giải quyết xuất sắc bài toán quản lý lớp học bằng các công nghệ tiên tiến:
-\begin{enumerate}
-    \item \textbf{Cơ chế xác thực 1-1 an toàn}: Loại bỏ hoàn toàn khả năng điểm danh hộ (False Positives).
-    \item \textbf{Kiến trúc Microservices vững chắc}: Phân tách độc lập Backend (I/O Bound) và Worker AI (CPU Bound) bằng Celery/Redis, đảm bảo API không bị Timeout.
-    \item \textbf{Bảo mật chuẩn hóa}: Tích hợp JWT Token phân quyền Admin mạnh mẽ.
-\end{enumerate}
-
-\section{Hạn chế của hệ thống (Limitations)}
+\section{Hạn chế}
 \begin{itemize}
-    \item \textbf{Rào cản vật lý (Khẩu trang/Kính râm)}: Thuật toán AI hiện tại phụ thuộc vào các đặc trưng hình học của toàn bộ khuôn mặt. Hệ thống \textbf{chưa} có khả năng nhận diện chính xác người dùng khi họ đeo khẩu trang y tế dày hoặc kính râm.
-    \item \textbf{Thiếu Anti-Spoofing}: Hiện tại hệ thống chưa kiểm tra sự sống (Liveness Detection, độ sâu 3D hoặc chớp mắt), tồn tại rủi ro bị đánh lừa bởi ảnh in 2D hoặc ảnh trên điện thoại.
+    \item Chưa tích hợp \textit{liveness detection}, dễ bị spoof bằng ảnh tĩnh.
+    \item Điều kiện ánh sáng kém hoặc che mặt có thể giảm độ chính xác.
 \end{itemize}
 
-\section{Đề xuất \& Hướng phát triển (Recommendations)}
-Nhóm đề xuất tích hợp thêm mô hình \textbf{Liveness Detection} để xử lý triệt để rủi ro ảnh giả (Spoofing). Ngoài ra, xem xét chuyển đổi triển khai từ Docker Compose lên cụm **Kubernetes (K8s) bằng Helm chart** để có thể Auto-scale số lượng AI Worker nhằm đáp ứng hàng vạn request vào giờ cao điểm.
+\chapter{Kết luận và hướng phát triển}
 
-\chapter{Tính năng Nâng cao (Advance)}
+\section{Kết luận}
+Dự án đã xây dựng thành công một hệ thống điểm danh thông minh với xác minh 1-1, kiến trúc microservices và quy trình vận hành đầy đủ (đăng ký, duyệt, điểm danh, báo cáo). Cấu trúc tách rời giữa API và AI Worker giúp hệ thống ổn định khi xử lý đồng thời nhiều lượt điểm danh.
 
-Nhằm đưa dự án chạm tới chất lượng của một phần mềm thương mại, nhóm đã hoàn thiện xuất sắc các tính năng Nâng cao (nằm trong tiêu chí lấy Điểm cộng của môn học) như sau:
-
-\section{1. Triển khai hệ thống lên Internet với Domain \& SSL}
-Hệ thống không chỉ dừng lại ở localhost mà đã được deploy thực tế:
+\section{Hướng phát triển}
 \begin{itemize}
-    \item \textbf{Tên miền chính thức}: Cấu hình tại \url{https://attendance.thanhtech.cloud}.
-    \item \textbf{Hạ tầng Gateway (Cloudflare Tunnel \& Nginx)}: Nhóm sử dụng Cloudflare Tunnel để đưa các cổng cục bộ ra Internet một cách an toàn mà không cần mở Port. Kết hợp \textbf{Nginx Reverse Proxy} để định tuyến tới Frontend và Backend API. Nhờ đó, người dùng được bảo mật toàn bộ dữ liệu qua \textbf{SSL (HTTPS)}, có thể dễ dàng truy cập bằng 3G/4G trên điện thoại.
-\end{itemize}
-
-\section{2. Luồng tự động sao lưu dữ liệu (Backup Local \& S3)}
-Dữ liệu là tài sản quý giá nhất, đặc biệt là thông tin khuôn mặt sinh viên:
-\begin{itemize}
-    \item Nhóm đã viết các script backup định kỳ (cronjobs) được đóng gói trong một container \texttt{backup} riêng biệt.
-    \item Hệ thống tự động tạo bản dump cho \textbf{MySQL DB} và bản snapshot lưu trữ vector cho \textbf{Qdrant}. Sau đó, toàn bộ dữ liệu này cùng với kho ảnh tĩnh từ \textbf{MinIO} được luân chuyển đồng bộ (Sync) sang hạ tầng Remote Storage chuẩn \textbf{AWS S3}. Tính năng này đáp ứng chuẩn khôi phục thảm họa (Disaster Recovery).
-\end{itemize}
-
-\section{3. Tích hợp CI/CD và Quản lý phiên bản}
-\begin{itemize}
-    \item \textbf{GitHub Actions}: Nhóm xây dựng luồng Continuous Integration (CI). Mỗi khi có code đẩy lên nhánh \texttt{main}, hệ thống tự động chạy lint, build lại các Docker Images (Backend, Worker) và kiểm tra tích hợp liên tục.
-    \item \textbf{Pipeline linh hoạt}: Cho phép cấu hình các trọng số Model (Threshold) thông qua biến môi trường độc lập, cô lập mã nguồn và dữ liệu cấu hình.
-\end{itemize}
-
-\section{4. Luồng Cache đa lớp và Tối ưu hiệu năng cao}
-Để đáp ứng nhiều người dùng cùng lúc (High Concurrency) với độ trễ siêu thấp:
-\begin{itemize}
-    \item \textbf{Bộ đệm Redis}: Đóng vai trò làm bộ nhớ đệm (Cache) cho tầng Application và tầng Client, giảm tải hàng ngàn request trực tiếp vào MySQL mỗi khi Load trang Dashboard.
-    \item \textbf{Hàng đợi Celery Queue}: Nhờ phân rã nghiệp vụ AI bằng Redis Queue, hệ thống có thể nhận hàng trăm yêu cầu điểm danh cùng lúc ở đầu giờ học mà API vẫn trả về \texttt{200 OK} cực nhanh (độ trễ dưới 1.5 giây), không bị ngắt kết nối.
+    \item Bổ sung liveness detection để chống giả mạo.
+    \item Tối ưu scale bằng cách tự động tăng/giảm số lượng worker.
+    \item Nâng cấp báo cáo và dashboard theo thời gian thực (WebSocket).
 \end{itemize}
 
 \vspace{1cm}

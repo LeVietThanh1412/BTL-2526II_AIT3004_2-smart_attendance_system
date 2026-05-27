@@ -1,51 +1,59 @@
-@startuml Component_Diagram
+@startuml
 skinparam componentStyle uml2
 skinparam linetype ortho
-skinparam nodesep 50
-skinparam ranksep 50
+skinparam nodesep 60
+skinparam ranksep 70
+skinparam defaultFontName Arial
 
-actor "Người dùng\n(Sinh viên/Giảng viên)" as User
+actor "Người dùng\n(Sinh viên / Giảng viên)" as User
 
-node "Docker Host / Máy chủ" {
+node "Docker Host (Edge Server / Cloud VM)" {
     
-    component "Nginx (Reverse Proxy & Static Server)" as Nginx {
-        [React UI Static Files]
+    component "Nginx Proxy\n(Cổng điều hướng)" as Nginx {
+        [Vue.js / Vite SPA] as VueUI
     }
 
-    package "Backend Service" {
-        [FastAPI App (REST API)] as FastAPI
+    package "Backend Layer (FastAPI)" {
+        [API Router\n(Auth, Schedule, Check-in)] as FastAPIRouter
+        [Scheduler / Cronjob\n(Quét vắng mặt 23:59)] as Cronjob
     }
 
-    package "AI Background Worker" {
-        [Celery Worker] as Celery
-        note right of Celery : Sử dụng DeepFace\nvà MTCNN
+    package "AI Background Worker (Celery)" {
+        [Celery Worker Daemon] as Celery
+        note bottom of Celery : Model: ArcFace (Nhúng Vector)\nDetector: RetinaFace (Dò mặt)
     }
 
     package "Data & Storage Layer" {
         database "Redis" as Redis
-        note right of Redis : Task Queue &\nMessage Broker
+        note left of Redis : Message Broker &\nCache (TTL: 86400s)
         
-        database "MySQL" as MySQL
-        note right of MySQL : Lưu User, Logs
+        database "MySQL 8.0" as MySQL
+        note right of MySQL : Chứa Users, Lịch học,\nLog Điểm danh, Cờ (Flags)
         
         database "Qdrant" as Qdrant
-        note right of Qdrant : Vector Database
+        note bottom of Qdrant : Vector DB (Search HNSW)\nLưu vector 512 chiều
         
-        database "MinIO" as MinIO
-        note right of MinIO : Object Storage\n(Lưu ảnh)
+        database "MinIO S3" as MinIO
+        note bottom of MinIO : Lưu ảnh tĩnh gốc\n(Bucket: attendance-images)
     }
 }
 
-User -right-> Nginx : HTTP/HTTPS (Port 80)
-Nginx --> FastAPI : Phân luồng API (/api)
+User -down-> Nginx : Truy cập (HTTP/8080)
+VueUI -down-> FastAPIRouter : Gọi API RESTful (/api/v1) / Polling
 
-FastAPI --> MinIO : Upload/Download ảnh
-FastAPI --> MySQL : Đọc/Ghi dữ liệu (SQLAlchemy)
-FastAPI -down-> Redis : Đẩy Task nhận diện
+FastAPIRouter -right-> MinIO : Upload/Đọc ảnh
+FastAPIRouter -down-> MySQL : Đọc/Ghi dữ liệu (SQLAlchemy)
+FastAPIRouter -left-> Redis : Đẩy Task (Event Queue)
 
-Redis <-down- Celery : Lấy Task cần xử lý
-Celery -up-> MinIO : Tải ảnh gốc để xử lý
-Celery -up-> Qdrant : Extract & Search Vector
-Celery -up-> Redis : Trả kết quả Task
+' ĐÃ FIX LỖI ĐÈ TEXT TẠI ĐÂY
+Cronjob -down-> MySQL 
+note on link
+  Cập nhật trạng thái 'absent'
+  và 'present_incomplete'
+end note
 
+Redis <-down- Celery : Lắng nghe & Lấy Task
+Celery -up-> MinIO : Kéo ảnh về xử lý AI
+Celery -right-> Qdrant : Extract Vector & So sánh (Similarity)
+Celery -up-> Redis : Trả kết quả (Success/Fail)
 @enduml

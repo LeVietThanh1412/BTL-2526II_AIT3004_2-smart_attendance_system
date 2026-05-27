@@ -2,15 +2,13 @@
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {3.1}{\ignorespaces Sơ đồ thành phần (Component Diagram) của hệ thống}}{10}{figure.caption.7}%
-\contentsline {figure}{\numberline {3.2}{\ignorespaces Sơ đồ triển khai (Deployment Diagram) với Docker Orchestration}}{10}{figure.caption.8}%
-\contentsline {figure}{\numberline {3.3}{\ignorespaces Sơ đồ tuần tự (Sequence Diagram) mô tả nghiệp vụ điểm danh qua Celery}}{12}{figure.caption.9}%
-\contentsline {figure}{\numberline {3.4}{\ignorespaces Sơ đồ hoạt động (Activity Diagram) thể hiện logic xác minh 1-1}}{13}{figure.caption.10}%
-\contentsline {figure}{\numberline {3.5}{\ignorespaces Sơ đồ Cơ sở dữ liệu (ERD)}}{14}{figure.caption.11}%
+\contentsline {figure}{\numberline {3.1}{\ignorespaces Sơ đồ Use Case hệ thống}}{10}{figure.caption.7}%
+\contentsline {figure}{\numberline {3.2}{\ignorespaces Sơ đồ thành phần (Component Diagram)}}{11}{figure.caption.8}%
+\contentsline {figure}{\numberline {3.3}{\ignorespaces Sơ đồ triển khai (Deployment Diagram) với Docker}}{11}{figure.caption.9}%
+\contentsline {figure}{\numberline {3.4}{\ignorespaces Sơ đồ tuần tự cho luồng đăng ký/điểm danh}}{13}{figure.caption.10}%
+\contentsline {figure}{\numberline {3.5}{\ignorespaces Sơ đồ hoạt động cho luồng điểm danh 1-1}}{14}{figure.caption.11}%
+\contentsline {figure}{\numberline {3.6}{\ignorespaces Sơ đồ ERD cơ sở dữ liệu}}{14}{figure.caption.12}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {5.1}{\ignorespaces Giao diện Đăng nhập dành cho Quản trị viên (Admin Auth)}}{17}{figure.caption.12}%
-\contentsline {figure}{\numberline {5.2}{\ignorespaces Giao diện Dashboard Quản trị và Thống kê Điểm danh}}{18}{figure.caption.13}%
-\contentsline {figure}{\numberline {5.3}{\ignorespaces Giao diện Đăng ký Khuôn mặt và Điểm danh cho Sinh viên}}{18}{figure.caption.14}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }

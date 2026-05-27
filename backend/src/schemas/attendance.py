@@ -10,6 +10,7 @@ class AttendanceCheckRequest(BaseModel):
 class AttendanceCheckResponse(BaseModel):
 	status: str
 	student_id: str
+	student_name: str | None = Field(default=None, description="Tên sinh viên")
 	match_score: float = Field(default=0.0, description="Cosine similarity score")
 	threshold: float = Field(default=0.6, description="Match threshold used")
 	matched: bool = Field(default=False, description="Whether the face matched")

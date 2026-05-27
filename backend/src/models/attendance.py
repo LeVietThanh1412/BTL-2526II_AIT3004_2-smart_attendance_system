@@ -26,6 +26,9 @@ class Attendance(Base):
     status = Column(Enum(AttendanceStatus, name="attendance_status"), nullable=False)
     is_late_override = Column(Boolean, nullable=True)
     override_reason = Column(String(255), nullable=True)
+    # Snapshot để giữ thông tin sinh viên ngay cả khi user bị xóa
+    snapshot_student_id = Column(String(30), nullable=True)
+    snapshot_full_name = Column(String(255), nullable=True)
 
     similarity_score = synonym("confidence_score")
 

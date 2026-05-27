@@ -3,14 +3,14 @@
     <AdminSidebar />
 
     <main class="content">
-      <TopHeader title="Lịch sử điểm danh" />
+      <TopHeader title="Nhật ký điểm danh" />
 
       <section class="panel-card logs-card">
         <div class="logs-header">
           <h2>Nhật ký điểm danh</h2>
           <div class="header-actions">
             <span class="total-count">Tổng: {{ totalItems }}</span>
-            <button class="export-btn" @click="exportCSV">Xuất Excel</button>
+            <button class="export-btn" @click="exportCSV">Xuất CSV</button>
           </div>
         </div>
 
@@ -149,8 +149,9 @@ const saveOverride = async () => {
     alert('Vui lòng nhập lý do.')
     return
   }
+  const isLatePayload = editData.value.status === 'success' ? editData.value.is_late : false
   try {
-    await overrideLateStatus(currentEditLog.value.id, editData.value.status, editData.value.is_late, editData.value.reason)
+    await overrideLateStatus(currentEditLog.value.id, editData.value.status, isLatePayload, editData.value.reason)
     showOverrideModal.value = false
     await loadLogs()
   } catch (err) {
@@ -205,7 +206,11 @@ let pollingInterval = null
 
 onMounted(() => {
   loadLogs()
-  pollingInterval = setInterval(loadLogs, 5000)
+  pollingInterval = setInterval(() => {
+    if (!showOverrideModal.value) {
+      loadLogs()
+    }
+  }, 5000)
 })
 
 onUnmounted(() => {

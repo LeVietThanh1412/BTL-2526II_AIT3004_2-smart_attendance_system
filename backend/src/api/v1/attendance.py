@@ -141,7 +141,17 @@ async def check_in(
     reason = worker_result.get("reason", "")
     message = worker_result.get("message", f"Điểm danh hoàn tất từ camera {camera_id}.")
 
-    def _reject_with_score(error_message: str):
+    # --- Parse ca học hợp lệ (phải thực hiện trước _reject_with_score) ---
+    shift_ids = [int(s.strip()) for s in schedule.shifts.split(",") if s.strip().isdigit() and int(s.strip()) in SHIFTS]
+    if not shift_ids:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Lịch học bị lỗi định dạng hoặc chứa ca không hợp lệ.")
+
+    first_shift = min(shift_ids)
+    last_shift = max(shift_ids)
+    shift_start_time = SHIFTS[first_shift]["start"]   # Giờ bắt đầu ca đầu tiên
+    end_time_of_last_shift = SHIFTS[last_shift]["end"] # Giờ kết thúc ca cuối
+
+    def _reject_with_score(error_message: str, t_start=None, t_end=None):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={
@@ -153,8 +163,8 @@ async def check_in(
                 "reason": reason,
                 "message": error_message,
                 "action": "check_in",
-                "shift_start": shift_start_time.strftime("%H:%M"),
-                "shift_end": end_time_of_last_shift.strftime("%H:%M"),
+                "shift_start": t_start.strftime("%H:%M") if t_start else shift_start_time.strftime("%H:%M"),
+                "shift_end": t_end.strftime("%H:%M") if t_end else end_time_of_last_shift.strftime("%H:%M"),
             },
         )
 
@@ -172,22 +182,6 @@ async def check_in(
         student_id, score, threshold, matched, reason,
     )
 
-    # --- Xử lý Check-in / Check-out ---
-    # Parse ca học hợp lệ
-    shift_ids = [int(s.strip()) for s in schedule.shifts.split(",") if s.strip().isdigit() and int(s.strip()) in SHIFTS]
-    if not shift_ids:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Lịch học bị lỗi định dạng hoặc chứa ca không hợp lệ.")
-
-    first_shift = min(shift_ids)
-    last_shift = max(shift_ids)
-    shift_start_time = SHIFTS[first_shift]["start"]   # Giờ bắt đầu ca đầu tiên
-    end_time_of_last_shift = SHIFTS[last_shift]["end"] # Giờ kết thúc ca cuối
-
-    # Thời gian cho phép check-in sớm (30 phút trước ca đầu)
-    checkin_earliest = (datetime.combine(current_date, shift_start_time) - timedelta(minutes=30)).time()
-    # Giờ được tính là đi muộn (sau giờ bắt đầu ca đầu 15 phút)
-    late_threshold = (datetime.combine(current_date, shift_start_time) + timedelta(minutes=15)).time()
-
     # Ràng buộc thời gian hệ thống
     if current_time < time(5, 30):
         return _reject_with_score("Hệ thống điểm danh chỉ mở từ 5h30 sáng.")
@@ -199,32 +193,50 @@ async def check_in(
         Attendance.status == AttendanceStatus.success
     ).order_by(Attendance.check_in_time.desc()).first()
 
-    # Nếu đã có bản ghi và đã check-out, tức là đã hoàn thành điểm danh trong ngày
-    if attendance and attendance.check_out_time is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Bạn đã hoàn thành điểm danh ra về (check-out) cho ngày hôm nay."
-        )
+    # Bỏ block chặn check-in nhiều lần
+    pass
 
     action = None
     is_late = None
     check_in_str = None
     check_out_str = None
 
-    if not attendance:
+    if not attendance or attendance.check_out_time is not None:
         # === CHECK-IN MỚI ===
         action = "check_in"
 
-        # Không cho check-in trước giờ mở cổng
-        if current_time < checkin_earliest:
-            return _reject_with_score(
-                f"Chưa đến giờ học. Ca bắt đầu lúc {shift_start_time.strftime('%H:%M')}, có thể check-in sớm nhất lúc {checkin_earliest.strftime('%H:%M')}."
-            )
-        # Không cho check-in sau khi ca cuối đã kết thúc
-        if current_time > end_time_of_last_shift:
-            return _reject_with_score("Ca học cuối cùng của bạn đã kết thúc, không thể check-in.")
+        # Xác định ca học mục tiêu thực tế cho phiên check-in này
+        target_shift_id = None
+        target_shift_start = None
+        target_shift_end = None
+        target_checkin_earliest = None
+        
+        for sid in sorted(shift_ids):
+            s_start = SHIFTS[sid]["start"]
+            s_end = SHIFTS[sid]["end"]
+            c_earliest = (datetime.combine(current_date, s_start) - timedelta(minutes=30)).time()
+            
+            # Khung giờ check-in: Từ 30p trước ca đến khi ca kết thúc
+            if current_time >= c_earliest and current_time <= s_end:
+                target_shift_id = sid
+                target_shift_start = s_start
+                target_shift_end = s_end
+                target_checkin_earliest = c_earliest
+                break
+                
+        if not target_shift_id:
+            first_earliest = (datetime.combine(current_date, shift_start_time) - timedelta(minutes=30)).time()
+            if current_time < first_earliest:
+                return _reject_with_score(
+                    f"Chưa đến giờ học. Ca bắt đầu lúc {shift_start_time.strftime('%H:%M')}, có thể check-in sớm nhất lúc {first_earliest.strftime('%H:%M')}."
+                )
+            if current_time > end_time_of_last_shift:
+                return _reject_with_score("Tất cả các ca học của bạn hôm nay đã kết thúc, không thể check-in.")
+            
+            return _reject_with_score("Hiện tại không nằm trong khung giờ mở điểm danh của bất kỳ ca học nào bạn đăng ký.")
 
-        # Xác định đi muộn
+        # Xác định đi muộn (15 phút sau khi ca bắt đầu)
+        late_threshold = (datetime.combine(current_date, target_shift_start) + timedelta(minutes=15)).time()
         is_late = current_time > late_threshold
 
         if status_enum != AttendanceStatus.success:
@@ -235,6 +247,8 @@ async def check_in(
                 confidence_score=score,
                 camera_id=camera_id,
                 status=status_enum,
+                snapshot_student_id=user.student_id,
+                snapshot_full_name=user.full_name,
             )
             db.add(failed_attendance)
             try:
@@ -244,12 +258,15 @@ async def check_in(
             return AttendanceCheckResponse(
                 status=status_value,
                 student_id=student_id,
+                student_name=user.full_name,
                 match_score=score,
                 threshold=threshold,
                 matched=matched,
                 reason=reason,
                 message=f"Check-in thất bại: {reason or 'Nhận diện khuôn mặt không thành công.'}",
                 action=action,
+                shift_start=target_shift_start.strftime("%H:%M") if target_shift_start else shift_start_time.strftime("%H:%M"),
+                shift_end=target_shift_end.strftime("%H:%M") if target_shift_end else end_time_of_last_shift.strftime("%H:%M"),
             )
 
         attendance = Attendance(
@@ -260,6 +277,8 @@ async def check_in(
             camera_id=camera_id,
             status=status_enum,
             is_late_override=is_late,
+            snapshot_student_id=user.student_id,
+            snapshot_full_name=user.full_name,
         )
         late_text = " (Muộn ⚠️)" if is_late else ""
         message = f"Check-in thành công lúc {today.strftime('%H:%M:%S')}{late_text}."
@@ -270,14 +289,34 @@ async def check_in(
         # === CHECK-OUT ===
         action = "check_out"
 
-        # Ràng buộc: chỉ checkout trong 30 phút trước giờ tan ca cuối
+        # Ràng buộc: chỉ checkout trong 30 phút trước giờ tan ca của CA HIỆN TẠI (dựa vào check_in_time)
+        check_in_t = attendance.check_in_time.time()
+        target_shift = shift_ids[-1]
+        for s in shift_ids:
+            if check_in_t <= SHIFTS[s]["end"]:
+                target_shift = s
+                break
+                
+        target_shift_end_time = SHIFTS[target_shift]["end"]
+
         checkout_window_start = (
-            datetime.combine(current_date, end_time_of_last_shift) - timedelta(minutes=30)
+            datetime.combine(current_date, target_shift_end_time) - timedelta(minutes=30)
         ).time()
+        
+        # Cho phép check-out muộn 30 phút sau khi ca kết thúc
+        checkout_window_end = (
+            datetime.combine(current_date, target_shift_end_time) + timedelta(minutes=30)
+        ).time()
+        
         if current_time < checkout_window_start:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Chưa đến giờ tan học. Chỉ được check-out trong 30 phút cuối (từ {checkout_window_start.strftime('%H:%M')}, tan lúc {end_time_of_last_shift.strftime('%H:%M')})."
+                detail=f"Chưa đến giờ tan ca hiện tại. Chỉ được check-out trong 30 phút cuối (từ {checkout_window_start.strftime('%H:%M')}, tan lúc {target_shift_end_time.strftime('%H:%M')})."
+            )
+        if current_time > checkout_window_end:
+             raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Đã quá hạn check-out của ca học này (hạn cuối {checkout_window_end.strftime('%H:%M')})."
             )
 
         is_late = bool(attendance.is_late_override)
@@ -286,10 +325,12 @@ async def check_in(
             failed_log = Attendance(
                 user_id=user.id,
                 attendance_date=current_date,
-                check_in_time=today,
+                check_out_time=today,
                 confidence_score=score,
                 camera_id=camera_id,
                 status=status_enum,
+                snapshot_student_id=user.student_id,
+                snapshot_full_name=user.full_name,
             )
             db.add(failed_log)
             message = f"Check-out thất bại: {reason or 'Nhận diện khuôn mặt không thành công.'}"
@@ -315,6 +356,7 @@ async def check_in(
     return AttendanceCheckResponse(
         status=status_value,
         student_id=student_id,
+        student_name=user.full_name,
         match_score=score,
         threshold=threshold,
         matched=matched,
@@ -324,8 +366,8 @@ async def check_in(
         is_late=is_late,
         check_in_time=check_in_str,
         check_out_time=check_out_str,
-        shift_start=shift_start_time.strftime("%H:%M"),
-        shift_end=end_time_of_last_shift.strftime("%H:%M"),
+        shift_start=target_shift_start.strftime("%H:%M") if 'target_shift_start' in locals() and target_shift_start else shift_start_time.strftime("%H:%M"),
+        shift_end=target_shift_end_time.strftime("%H:%M") if 'target_shift_end_time' in locals() and target_shift_end_time else (target_shift_end.strftime("%H:%M") if 'target_shift_end' in locals() and target_shift_end else end_time_of_last_shift.strftime("%H:%M")),
     )
 
 
@@ -352,8 +394,16 @@ def override_late_status(
     attendance.is_late_override = payload.is_late_override
     attendance.override_reason = payload.override_reason
     if payload.status in [e.value for e in AttendanceStatus]:
-        attendance.status = AttendanceStatus(payload.status)
+        new_status = AttendanceStatus(payload.status)
+        attendance.status = new_status
         
+        # Cleanup timestamps based on new status
+        if new_status in [AttendanceStatus.absent_unexcused, AttendanceStatus.absent_excused, AttendanceStatus.failed]:
+            attendance.check_in_time = None
+            attendance.check_out_time = None
+        elif new_status == AttendanceStatus.present_incomplete:
+            attendance.check_out_time = None
+            
     db.commit()
     
     return {"message": "Đã sửa trạng thái điểm danh thành công."}

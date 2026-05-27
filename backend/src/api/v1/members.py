@@ -111,12 +111,31 @@ def approve_member(student_id: str, db: Session = Depends(get_db), admin: str = 
     user.is_approved = True
     
     from src.models.schedule import StudentSchedule
+    from datetime import datetime
     # Dùng cùng logic với /schedule/approve: nếu có lịch chờ duyệt thì xóa lịch cũ rồi duyệt lịch chờ
     # Nếu không có lịch chờ (đăng ký lần đầu chưa submit), duyệt luôn lịch hiện tại
-    pending_count = db.query(StudentSchedule).filter(StudentSchedule.user_id == user.id, StudentSchedule.is_approved == False).count()
+    pending_count = db.query(StudentSchedule).filter(
+        StudentSchedule.user_id == user.id, 
+        StudentSchedule.is_approved == False,
+        StudentSchedule.is_active == True
+    ).count()
     if pending_count > 0:
-        db.query(StudentSchedule).filter(StudentSchedule.user_id == user.id, StudentSchedule.is_approved == True).delete()
-        db.query(StudentSchedule).filter(StudentSchedule.user_id == user.id, StudentSchedule.is_approved == False).update({"is_approved": True})
+        # Vô hiệu hóa lịch cũ đã duyệt (giữ lại lịch sử) thay vì xóa
+        db.query(StudentSchedule).filter(
+            StudentSchedule.user_id == user.id, 
+            StudentSchedule.is_approved == True,
+            StudentSchedule.is_active == True
+        ).update({"is_active": False})
+        
+        # Duyệt lịch chờ
+        db.query(StudentSchedule).filter(
+            StudentSchedule.user_id == user.id, 
+            StudentSchedule.is_approved == False,
+            StudentSchedule.is_active == True
+        ).update({
+            "is_approved": True,
+            "approved_at": datetime.now()
+        })
     else:
         # Không có lịch nào cả (sv chưa đăng ký lịch) - không cần làm gì
         pass

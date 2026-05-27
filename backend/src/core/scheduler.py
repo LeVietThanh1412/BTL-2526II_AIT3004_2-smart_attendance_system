@@ -35,18 +35,24 @@ async def mark_absent_task():
         # Tìm tất cả lịch học đã được duyệt của ngày hôm nay
         schedules = db.query(StudentSchedule).filter(
             StudentSchedule.day_of_week == day_of_week,
-            StudentSchedule.is_approved == True
+            StudentSchedule.is_approved == True,
+            StudentSchedule.is_active == True
         ).all()
         
         for schedule in schedules:
             user_id = schedule.user_id
-            shift_ids = [int(s.strip()) for s in schedule.shifts.split(",") if s.strip().isdigit()]
+            shift_ids = [int(s.strip()) for s in schedule.shifts.split(",") if s.strip().isdigit() and int(s.strip()) in SHIFTS]
             
             # Lấy tất cả bản ghi (phiên) điểm danh của sinh viên hôm nay
             attendances = db.query(Attendance).filter(
                 Attendance.user_id == user_id,
                 Attendance.attendance_date == current_date
             ).all()
+            
+            # Lấy user để snapshot tên
+            snap_user = db.query(User).filter(User.id == user_id).first()
+            snap_student_id = snap_user.student_id if snap_user else None
+            snap_full_name = snap_user.full_name if snap_user else None
             
             # Kiểm tra xem sinh viên có vắng ca học nào không
             for shift_id in shift_ids:
@@ -61,7 +67,17 @@ async def mark_absent_task():
                     if not att.check_in_time: continue
                     
                     in_time = att.check_in_time.time()
-                    out_time = att.check_out_time.time() if att.check_out_time else time(23, 59, 59)
+                    if att.check_out_time:
+                        out_time = att.check_out_time.time()
+                    else:
+                        # Sinh viên quên check-out: chỉ tính có mặt đến hết ca mà check-in time thuộc về
+                        # Tìm ca gần nhất chứa check_in_time
+                        checkin_shift_end = shift_end  # fallback
+                        for sid, sdata in SHIFTS.items():
+                            if sdata["start"] <= in_time <= sdata["end"]:
+                                checkin_shift_end = sdata["end"]
+                                break
+                        out_time = checkin_shift_end
                     
                     # Overlap: (in_time <= shift_end) and (shift_start <= out_time)
                     if in_time <= shift_end and shift_start <= out_time:
@@ -75,7 +91,9 @@ async def mark_absent_task():
                         confidence_score=0.0,
                         camera_id="system_auto",
                         status=AttendanceStatus.absent_unexcused,
-                        override_reason=f"Vắng Ca {shift_id}"
+                        override_reason=f"Vắng Ca {shift_id}",
+                        snapshot_student_id=snap_student_id,
+                        snapshot_full_name=snap_full_name,
                     )
                     db.add(new_att)
 

@@ -24,7 +24,7 @@ def get_schedule_history(student_id: str, db: Session = Depends(get_db)):
     # Nhóm theo created_at (round về giây để tránh microsecond diff)
     history_groups = {}
     for s in all_schedules:
-        created_key = s.created_at.replace(microsecond=0) if s.created_at else None
+        created_key = s.created_at if s.created_at else None
         key = (created_key, s.is_approved, s.is_active)
         if key not in history_groups:
             history_groups[key] = {"schedules": [], "approved_at": s.approved_at, "is_active": s.is_active}
@@ -82,6 +82,14 @@ def update_student_schedule(
     now = datetime.now()
     new_schedules = []
     for schedule_data in payload.schedules:
+        # Validate shifts format and values (must be comma separated 1-4)
+        shifts_parts = [s.strip() for s in schedule_data.shifts.split(",") if s.strip()]
+        if not shifts_parts:
+            raise HTTPException(status_code=400, detail="Ca học không được để trống.")
+        for s in shifts_parts:
+            if s not in {"1", "2", "3", "4"}:
+                raise HTTPException(status_code=400, detail=f"Ca học không hợp lệ: {s}. Chỉ chấp nhận ca 1, 2, 3, 4.")
+                
         new_schedule = StudentSchedule(
             user_id=user.id,
             day_of_week=schedule_data.day_of_week,
@@ -129,6 +137,10 @@ def approve_student_schedule(
     for schedule in pending_schedules:
         schedule.is_approved = True
         schedule.approved_at = now
+
+    # Tự động duyệt tài khoản sinh viên nếu chưa được duyệt
+    if not user.is_approved:
+        user.is_approved = True
     
     db.commit()
     

@@ -208,8 +208,8 @@ const handleCheckIn = async () => {
         console.error('[v0] Lỗi gửi điểm danh:', err.message)
         const now = new Date()
         
-        // YÊU CẦU 4: Đọc chi tiết thông báo lỗi từ Backend trả về (Ví dụ: Không tồn tại, Điểm thấp...)
-        const backendErrorMessage = err?.response?.data?.message || err?.response?.data?.detail || 'Không thể kết nối máy chủ điểm danh.'
+        // YÊU CẦU 4: Đọc chi tiết thông báo lỗi từ Backend trả về (Ưu tiên detail vì FastAPI dùng detail cho HTTPException)
+        const backendErrorMessage = err?.response?.data?.detail || err?.response?.data?.message || 'Không thể kết nối máy chủ điểm danh.'
         const accuracyText = formatScorePercent(err?.response?.data?.match_score)
         
         result.value = {
@@ -218,6 +218,7 @@ const handleCheckIn = async () => {
             statusText: backendErrorMessage, // Hiển thị rõ lỗi cụ thể lên màn hình
             isError: true,
             accuracyText,
+            shiftInfo: (err?.response?.data?.shift_start && err?.response?.data?.shift_end) ? `${err.response.data.shift_start} – ${err.response.data.shift_end}` : null,
         }
     } finally {
         isProcessing.value = false

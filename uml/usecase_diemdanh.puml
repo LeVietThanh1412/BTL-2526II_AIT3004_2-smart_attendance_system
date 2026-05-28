@@ -1,0 +1,97 @@
+@startuml UseCase_DiemDanh
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam linetype ortho
+
+skinparam usecase {
+    BackgroundColor LightCyan
+    BorderColor SteelBlue
+    ArrowColor DimGray
+    FontName Arial
+    FontSize 11
+}
+skinparam actor {
+    BackgroundColor White
+    BorderColor SteelBlue
+    FontName Arial
+}
+skinparam note {
+    BackgroundColor LightYellow
+    BorderColor Goldenrod
+    FontName Arial
+    FontSize 10
+}
+
+actor "Sinh viên" as SV
+actor "Hệ thống\n(Tự động)" as SYS
+
+rectangle "Phân hệ Điểm danh" {
+
+    ' === Điểm danh chính ===
+    usecase "Điểm danh\n(Check-in)" as UC_CheckIn
+    usecase "Điểm danh\n(Check-out)" as UC_CheckOut
+    usecase "Nhập mã\nsinh viên" as UC_InputID
+    usecase "Chụp ảnh\nkhuôn mặt" as UC_CapturePhoto
+
+    ' === AI xử lý ===
+    usecase "Gửi ảnh lên\nMinIO" as UC_UploadMinIO
+    usecase "Xác minh khuôn mặt\n1-1 (AI Worker)" as UC_Verify
+    usecase "So khớp vector\ntrên Qdrant" as UC_MatchVector
+
+    ' === Logic nghiệp vụ ===
+    usecase "Kiểm tra lịch học\nđã duyệt" as UC_CheckSchedule
+    usecase "Xác định ca học\nmục tiêu" as UC_DetectShift
+    usecase "Phát hiện\nđi muộn" as UC_DetectLate
+    usecase "Kiểm tra khung giờ\ncheck-out hợp lệ" as UC_ValidateCheckout
+
+    ' === Tự động ===
+    usecase "Cronjob quét\nvắng mặt (23:59)" as UC_CronAbsent
+    usecase "Đánh dấu quên\ncheck-out" as UC_MarkIncomplete
+}
+
+' === Sinh viên ===
+SV --> UC_CheckIn
+SV --> UC_CheckOut
+
+' === Luồng Check-in ===
+UC_CheckIn ..> UC_InputID : <<include>>
+UC_CheckIn ..> UC_CapturePhoto : <<include>>
+UC_CheckIn ..> UC_CheckSchedule : <<include>>
+UC_CheckIn ..> UC_UploadMinIO : <<include>>
+UC_CheckIn ..> UC_Verify : <<include>>
+UC_Verify ..> UC_MatchVector : <<include>>
+UC_CheckIn ..> UC_DetectShift : <<include>>
+UC_CheckIn ..> UC_DetectLate : <<extend>>
+
+' === Luồng Check-out ===
+UC_CheckOut ..> UC_InputID : <<include>>
+UC_CheckOut ..> UC_CapturePhoto : <<include>>
+UC_CheckOut ..> UC_DetectShift : <<include>>
+UC_CheckOut ..> UC_ValidateCheckout : <<include>>
+UC_CheckOut ..> UC_Verify : <<include>>
+
+' === Hệ thống tự động ===
+SYS --> UC_CronAbsent
+UC_CronAbsent ..> UC_MarkIncomplete : <<include>>
+
+note right of UC_DetectLate
+  Muộn nếu Check-in
+  sau 15 phút kể từ
+  giờ bắt đầu ca
+end note
+
+note right of UC_ValidateCheckout
+  Chỉ hợp lệ trong
+  30 phút cuối ca và
+  30 phút sau kết thúc
+end note
+
+note bottom of UC_CronAbsent
+  23:59 mỗi ngày:
+  - Quét từng ca đã đăng ký
+  - Tạo log vắng nếu không overlap
+  - Đánh dấu quên check-out
+end note
+
+@enduml

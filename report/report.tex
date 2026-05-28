@@ -26,7 +26,7 @@
 \clubpenalty=10000
 \widowpenalty=10000
 
-\graphicspath{{../uml/}{../demo/}}
+\graphicspath{{../uml/}{../demo/}{./}}
 \onehalfspacing
 
 % Allow line breaks in \texttt
@@ -223,13 +223,93 @@ Deploy & Docker Compose & Đóng gói, triển khai nhanh toàn hệ thống. \\
 
 \chapter{Phân tích và thiết kế}
 
-\section{Use Case}
+\section{Use Case tổng thể}
+Sơ đồ Use Case tổng thể (Hình \ref{fig:usecase}) thể hiện toàn bộ chức năng của hệ thống theo ba nhóm tác nhân chính: Sinh viên, Quản lý/Giảng viên, và Hệ thống tự động.
+
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth]{usecase.png}
-    \caption{Sơ đồ Use Case hệ thống}
+    \includegraphics[width=0.95\textwidth]{usecase.png}
+    \caption{Sơ đồ Use Case tổng thể hệ thống}
     \label{fig:usecase}
 \end{figure}
+
+Hệ thống bao gồm các nhóm chức năng sau:
+\begin{itemize}
+    \item \textbf{Sinh viên}: Đăng ký khuôn mặt (ảnh/video), đăng ký lịch học, đổi ca học, điểm danh check-in/check-out, xem lịch sử cá nhân.
+    \item \textbf{Quản lý/Giảng viên}: Đăng nhập quản trị, duyệt sinh viên, quản lý lịch học (duyệt/từ chối), sửa trạng thái điểm danh, xem dashboard thống kê, xem nhật ký, xuất CSV, xem thông báo.
+    \item \textbf{Hệ thống}: Trích xuất vector khuôn mặt (AI), nhận diện khuôn mặt (AI), phát hiện đi muộn, Cronjob quét vắng mặt tự động lúc 23:59.
+\end{itemize}
+
+\subsection{Use Case chi tiết: Đăng ký sinh viên}
+Sơ đồ dưới đây (Hình \ref{fig:usecase_dangky}) mô tả chi tiết quy trình đăng ký sinh viên mới, bao gồm đăng ký khuôn mặt (bằng ảnh hoặc video), đăng ký lịch học theo ca, và quy trình xét duyệt bởi giảng viên.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{usecase_dangky.png}
+    \caption{Sơ đồ Use Case chi tiết -- Phân hệ Đăng ký sinh viên}
+    \label{fig:usecase_dangky}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Use Case} & \textbf{Mô tả} \\ \hline
+Đăng ký khuôn mặt & Sinh viên tải ảnh (base64) hoặc quay video. Hệ thống trích xuất vector 512 chiều bằng ArcFace, lưu vào Qdrant và ảnh gốc vào MinIO. \\ \hline
+Đăng ký lịch học & Sinh viên chọn thứ và ca học (4 ca/ngày). Lịch ở trạng thái chờ duyệt. \\ \hline
+Duyệt sinh viên & Giảng viên duyệt tài khoản mới (is\_approved = True). \\ \hline
+Duyệt/Từ chối lịch học & Giảng viên phê duyệt hoặc từ chối yêu cầu lịch. Lịch cũ bị vô hiệu hóa khi có lịch mới được duyệt. \\ \hline
+\end{tabularx}
+\caption{Mô tả Use Case phân hệ Đăng ký}
+\end{table}
+
+\subsection{Use Case chi tiết: Điểm danh}
+Sơ đồ dưới đây (Hình \ref{fig:usecase_diemdanh}) mô tả chi tiết quy trình điểm danh đa phiên, bao gồm check-in, check-out, nhận diện khuôn mặt AI, phát hiện đi muộn và xử lý tự động cuối ngày.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{usecase_diemdanh.png}
+    \caption{Sơ đồ Use Case chi tiết -- Phân hệ Điểm danh}
+    \label{fig:usecase_diemdanh}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Use Case} & \textbf{Mô tả} \\ \hline
+Check-in & Sinh viên nhập MSSV, chụp ảnh. Hệ thống kiểm tra lịch học, gửi ảnh qua Celery Worker xác minh 1-1 với Qdrant. Nếu khớp, ghi log check-in và xác định ca mục tiêu. \\ \hline
+Check-out & Tương tự check-in nhưng kiểm tra thêm khung giờ hợp lệ (30 phút cuối ca + 30 phút sau kết thúc). \\ \hline
+Phát hiện đi muộn & Tự động đánh dấu nếu check-in sau 15 phút so với giờ bắt đầu ca. \\ \hline
+Cronjob quét vắng & Lúc 23:59, quét từng ca đã đăng ký. Tạo log vắng nếu không tìm thấy phiên giao cắt. Đánh dấu quên check-out cho phiên chưa đóng. \\ \hline
+\end{tabularx}
+\caption{Mô tả Use Case phân hệ Điểm danh}
+\end{table}
+
+\subsection{Use Case chi tiết: Quản trị hệ thống}
+Sơ đồ dưới đây (Hình \ref{fig:usecase_quantri}) mô tả chi tiết các chức năng quản trị dành cho giảng viên/admin, bao gồm quản lý sinh viên, quản lý lịch học, override điểm danh, dashboard và báo cáo.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{usecase_quantri.png}
+    \caption{Sơ đồ Use Case chi tiết -- Phân hệ Quản trị}
+    \label{fig:usecase_quantri}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Use Case} & \textbf{Mô tả} \\ \hline
+Đăng nhập quản trị & Xác thực bằng JWT. Tài khoản admin cấu hình từ biến môi trường. \\ \hline
+Duyệt/Xóa sinh viên & Phê duyệt tài khoản sinh viên mới hoặc xóa sinh viên khỏi hệ thống. \\ \hline
+Quản lý lịch học & Duyệt/từ chối yêu cầu đổi ca. Xem lịch sử đổi ca của sinh viên. \\ \hline
+Override điểm danh & Ghi đè trạng thái: đi muộn/đúng giờ, đánh dấu vắng, đánh dấu quên check-out. \\ \hline
+Dashboard thống kê & Xem tổng quan: tổng sinh viên, đi học, đi muộn, vắng mặt (dùng DISTINCT user\_id). \\ \hline
+Xuất CSV & Xuất nhật ký điểm danh chi tiết ra file CSV để phục vụ báo cáo. \\ \hline
+\end{tabularx}
+\caption{Mô tả Use Case phân hệ Quản trị}
+\end{table}
 
 \section{Kiến trúc tổng thể}
 \begin{figure}[H]
@@ -368,8 +448,32 @@ Các màn hình dưới đây minh họa luồng thao tác chính của hệ th�
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.7\textwidth]{dang_ki_diem_danh.png}
-    \caption{Màn hình điểm danh/check-in cho sinh viên}
+    \caption{Màn hình đăng ký điểm danh cho sinh viên}
     \label{fig:demo_checkin}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Admin_QuanLySinhVien.png}
+    \caption{Màn hình quản lý sinh viên (Admin)}
+    \label{fig:demo_quanlysv}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{GiaoDienDoiCaHoc.png}
+        \caption{Giao diện đổi ca học}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{SV_DiemDanh.png}
+        \caption{Giao diện điểm danh sinh viên}
+    \end{subfigure}
+    \caption{Các màn hình chức năng phía sinh viên}
+    \label{fig:demo_sv}
 \end{figure}
 
 \chapter{Triển khai và vận hành}
@@ -480,6 +584,38 @@ Nhóm đã hoàn thiện một số hạng mục nâng cao nhằm tăng tính s�
     \item \textbf{Quản lý cấu hình model/pipeline}: tham số mô hình và ngưỡng nhận diện cấu hình qua \texttt{.env} (\code{DEEPFACE_MODEL_NAME}, \code{FACE_DETECTOR_BACKEND}, \code{FACE_MATCH_THRESHOLD}).
     \item \textbf{Cache và hiệu năng}: Redis làm broker/cache, TTL cho embedding giúp giảm tải truy vấn và ổn định độ trễ.
 \end{itemize}
+
+\chapter{Phân công nhiệm vụ}
+
+Bảng dưới đây trình bày chi tiết phân công nhiệm vụ của từng thành viên trong nhóm và tỉ lệ đóng góp tương ứng.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|c|X|l|c|}
+\hline
+\textbf{STT} & \textbf{MSSV} & \textbf{Họ và tên} & \textbf{Vai trò chính} & \textbf{Tỉ lệ} \\ \hline
+1 & 24022454 & Lê Việt Thành & Trưởng nhóm, DevOps & 25\% \\ \hline
+2 & 24022406 & Nguyễn Nhật Minh & Backend Developer & 25\% \\ \hline
+3 & 24022364 & Tạ Duy Khánh & AI/Worker Developer & 25\% \\ \hline
+4 & 24022394 & Nguyễn Đức Mạnh & Frontend Developer & 25\% \\ \hline
+\end{tabularx}
+\caption{Thông tin thành viên và tỉ lệ đóng góp}
+\label{tab:thanhvien}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Thành viên} & \textbf{Nhiệm vụ chi tiết} \\ \hline
+Lê Việt Thành & Thiết kế kiến trúc hệ thống, cấu hình Docker Compose, thiết lập CI/CD pipeline, cấu hình Nginx reverse proxy, xây dựng Backup Service, triển khai hệ thống lên Internet (SSL + domain), viết tài liệu báo cáo. \\ \hline
+Nguyễn Nhật Minh & Phát triển API FastAPI (Auth, Members, Schedule, Attendance, Dashboard), thiết kế database schema MySQL, xây dựng Scheduler/Cronjob quét vắng mặt, tích hợp xác thực JWT, xử lý logic điểm danh đa phiên. \\ \hline
+Tạ Duy Khánh & Xây dựng Celery Worker, tích hợp DeepFace (ArcFace/RetinaFace), triển khai Qdrant Vector DB, phát triển pipeline trích xuất và so khớp vector khuôn mặt, cấu hình Redis cache cho embeddings. \\ \hline
+Nguyễn Đức Mạnh & Phát triển giao diện Vue 3 SPA, xây dựng trang điểm danh sinh viên, dashboard quản trị, giao diện quản lý sinh viên và lịch học, thiết kế UI/UX, tích hợp API với frontend. \\ \hline
+\end{tabularx}
+\caption{Chi tiết nhiệm vụ của từng thành viên}
+\label{tab:phancong}
+\end{table}
 
 \chapter{Kết luận và hướng phát triển}
 

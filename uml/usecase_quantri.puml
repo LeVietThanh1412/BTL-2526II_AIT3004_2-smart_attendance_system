@@ -1,0 +1,99 @@
+@startuml UseCase_QuanTri
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam linetype ortho
+
+skinparam usecase {
+    BackgroundColor LightCyan
+    BorderColor SteelBlue
+    ArrowColor DimGray
+    FontName Arial
+    FontSize 11
+}
+skinparam actor {
+    BackgroundColor White
+    BorderColor SteelBlue
+    FontName Arial
+}
+skinparam note {
+    BackgroundColor LightYellow
+    BorderColor Goldenrod
+    FontName Arial
+    FontSize 10
+}
+
+actor "Quản lý /\nGiảng viên" as GV
+
+rectangle "Phân hệ Quản trị Hệ thống" {
+
+    ' === Xác thực ===
+    usecase "Đăng nhập\nquản trị (JWT)" as UC_Login
+
+    ' === Quản lý sinh viên ===
+    usecase "Xem danh sách\nsinh viên" as UC_ListStudents
+    usecase "Duyệt sinh viên\nmới đăng ký" as UC_ApproveStudent
+    usecase "Xóa sinh viên" as UC_DeleteStudent
+
+    ' === Quản lý lịch học ===
+    usecase "Xem yêu cầu\nđổi ca học" as UC_ViewScheduleReq
+    usecase "Duyệt lịch học" as UC_ApproveSchedule
+    usecase "Từ chối lịch học" as UC_RejectSchedule
+    usecase "Xem lịch sử\nđổi ca" as UC_ScheduleHistory
+
+    ' === Quản lý điểm danh ===
+    usecase "Sửa trạng thái\nđiểm danh (Override)" as UC_Override
+    usecase "Ghi đè đi muộn\n/ đúng giờ" as UC_OverrideLate
+    usecase "Đánh dấu\nvắng mặt" as UC_MarkAbsent
+    usecase "Đánh dấu quên\ncheck-out" as UC_MarkIncomplete
+
+    ' === Dashboard & Báo cáo ===
+    usecase "Xem Dashboard\nthống kê" as UC_Dashboard
+    usecase "Xem nhật ký\nđiểm danh" as UC_ViewLogs
+    usecase "Xuất báo cáo\nCSV" as UC_ExportCSV
+    usecase "Xem thông báo\nhệ thống" as UC_Notification
+}
+
+' === Admin ===
+GV --> UC_Login
+GV --> UC_ListStudents
+GV --> UC_ApproveStudent
+GV --> UC_DeleteStudent
+GV --> UC_ViewScheduleReq
+GV --> UC_ApproveSchedule
+GV --> UC_RejectSchedule
+GV --> UC_ScheduleHistory
+GV --> UC_Override
+GV --> UC_Dashboard
+GV --> UC_ViewLogs
+GV --> UC_ExportCSV
+GV --> UC_Notification
+
+' === Override chi tiết ===
+UC_Override ..> UC_OverrideLate : <<extend>>
+UC_Override ..> UC_MarkAbsent : <<extend>>
+UC_Override ..> UC_MarkIncomplete : <<extend>>
+
+' === Dashboard extend ===
+UC_Dashboard ..> UC_ViewLogs : <<extend>>
+UC_ViewLogs ..> UC_ExportCSV : <<extend>>
+
+note right of UC_Override
+  Admin có thể:
+  - Ghi đè đi muộn/đúng giờ
+  - Đánh dấu vắng mặt
+  - Đánh dấu quên check-out
+end note
+
+note right of UC_Login
+  Xác thực bằng JWT
+  Tài khoản admin từ .env
+end note
+
+note bottom of UC_Dashboard
+  Thống kê: Tổng sinh viên,
+  đi học, đi muộn, vắng mặt
+  (dùng DISTINCT user_id)
+end note
+
+@enduml

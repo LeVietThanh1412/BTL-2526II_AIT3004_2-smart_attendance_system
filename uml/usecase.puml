@@ -10,39 +10,77 @@ skinparam usecase {
     BorderColor SteelBlue
     ArrowColor DimGray
     FontName Arial
+    FontSize 11
 }
 skinparam actor {
     BackgroundColor White
     BorderColor SteelBlue
     FontName Arial
 }
-
-actor "Sinh viên" as SV
-actor "Quản lý / Giảng viên" as GV
-
-rectangle "Smart Attendance System" {
-    
-    ' Nhóm Use case của Sinh viên
-    usecase "Đăng ký khuôn mặt" as UC_Register
-    usecase "Điểm danh (Attendance)" as UC_CheckIn
-    usecase "Xem lịch sử cá nhân" as UC_PersonalHistory
-    
-    ' Nhóm Use case của Quản lý / Giảng viên
-    usecase "Quản lý sinh viên" as UC_ManageStudents
-    usecase "Xem báo cáo tổng hợp" as UC_ViewReport
-    usecase "Xuất file điểm danh\n(Excel/CSV)" as UC_ExportReport
+skinparam rectangle {
+    BorderColor SteelBlue
+    FontName Arial
 }
 
-' Phân quyền Sinh viên
+actor "Sinh viên" as SV
+actor "Quản lý /\nGiảng viên" as GV
+actor "Hệ thống\n(Tự động)" as SYS
+
+rectangle "Smart Attendance System" {
+
+    ' === Use cases của Sinh viên ===
+    usecase "Đăng ký khuôn mặt\n(Ảnh / Video)" as UC_Register
+    usecase "Đăng ký lịch học" as UC_Schedule
+    usecase "Đổi ca học" as UC_ChangeShift
+    usecase "Điểm danh\n(Check-in / Check-out)" as UC_CheckIn
+    usecase "Xem lịch sử\nđiểm danh cá nhân" as UC_PersonalHistory
+
+    ' === Use cases của Admin ===
+    usecase "Đăng nhập quản trị" as UC_Login
+    usecase "Duyệt sinh viên" as UC_Approve
+    usecase "Quản lý lịch học\n(Duyệt / Từ chối)" as UC_ManageSchedule
+    usecase "Sửa trạng thái\nđiểm danh (Override)" as UC_Override
+    usecase "Xem Dashboard\nthống kê" as UC_Dashboard
+    usecase "Xem nhật ký\nđiểm danh" as UC_ViewLogs
+    usecase "Xuất báo cáo\n(CSV)" as UC_ExportCSV
+    usecase "Xem thông báo" as UC_Notification
+
+    ' === Use cases nội bộ hệ thống ===
+    usecase "Trích xuất vector\nkhuôn mặt (AI)" as UC_ExtractVector
+    usecase "Nhận diện\nkhuôn mặt (AI)" as UC_FaceMatch
+    usecase "Phát hiện\nđi muộn" as UC_DetectLate
+    usecase "Cronjob quét\nvắng mặt (23:59)" as UC_CronAbsent
+}
+
+' === Sinh viên ===
 SV --> UC_Register
+SV --> UC_Schedule
+SV --> UC_ChangeShift
 SV --> UC_CheckIn
 SV --> UC_PersonalHistory
 
-' Phân quyền Quản lý / Giảng viên
-GV --> UC_ManageStudents
-GV --> UC_ViewReport
-GV --> UC_ExportReport
+' === Admin ===
+GV --> UC_Login
+GV --> UC_Approve
+GV --> UC_ManageSchedule
+GV --> UC_Override
+GV --> UC_Dashboard
+GV --> UC_ViewLogs
+GV --> UC_ExportCSV
+GV --> UC_Notification
 
-' Giảng viên cũng có thể xem lịch sử cá nhân của sinh viên từ báo cáo
-UC_PersonalHistory .up.> UC_ViewReport : <<extend>>
+' === Hệ thống tự động ===
+SYS --> UC_CronAbsent
+
+' === Quan hệ include ===
+UC_Register ..> UC_ExtractVector : <<include>>
+UC_CheckIn ..> UC_FaceMatch : <<include>>
+
+' === Quan hệ extend ===
+UC_CheckIn ..> UC_DetectLate : <<extend>>
+UC_Dashboard ..> UC_ViewLogs : <<extend>>
+
+' === Quan hệ khác ===
+UC_ChangeShift ..> UC_ManageSchedule : <<extend>>
+
 @enduml

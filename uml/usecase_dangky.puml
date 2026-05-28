@@ -1,0 +1,88 @@
+@startuml UseCase_DangKy
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam linetype ortho
+
+skinparam usecase {
+    BackgroundColor LightCyan
+    BorderColor SteelBlue
+    ArrowColor DimGray
+    FontName Arial
+    FontSize 11
+}
+skinparam actor {
+    BackgroundColor White
+    BorderColor SteelBlue
+    FontName Arial
+}
+skinparam note {
+    BackgroundColor LightYellow
+    BorderColor Goldenrod
+    FontName Arial
+    FontSize 10
+}
+
+actor "Sinh viên" as SV
+actor "Quản lý /\nGiảng viên" as GV
+
+rectangle "Phân hệ Đăng ký Sinh viên" {
+
+    ' === Đăng ký khuôn mặt ===
+    usecase "Đăng ký khuôn mặt" as UC_RegFace
+    usecase "Tải ảnh chân dung\n(Base64)" as UC_UploadPhoto
+    usecase "Quay video\nđăng ký" as UC_UploadVideo
+    usecase "Trích xuất vector\nkhuôn mặt (ArcFace)" as UC_Extract
+    usecase "Lưu vector vào\nQdrant DB" as UC_SaveVector
+    usecase "Lưu ảnh gốc\nvào MinIO" as UC_SavePhoto
+
+    ' === Đăng ký lịch học ===
+    usecase "Đăng ký lịch học\ntheo ca" as UC_RegSchedule
+    usecase "Chọn thứ và\nca học" as UC_SelectShift
+
+    ' === Duyệt ===
+    usecase "Duyệt sinh viên" as UC_Approve
+    usecase "Duyệt lịch học" as UC_ApproveSchedule
+    usecase "Từ chối\nlịch học" as UC_RejectSchedule
+}
+
+' === Sinh viên ===
+SV --> UC_RegFace
+SV --> UC_RegSchedule
+
+' === Đăng ký khuôn mặt - chi tiết ===
+UC_RegFace ..> UC_UploadPhoto : <<extend>>
+UC_RegFace ..> UC_UploadVideo : <<extend>>
+UC_RegFace ..> UC_Extract : <<include>>
+UC_Extract ..> UC_SaveVector : <<include>>
+UC_RegFace ..> UC_SavePhoto : <<include>>
+
+' === Đăng ký lịch học - chi tiết ===
+UC_RegSchedule ..> UC_SelectShift : <<include>>
+
+' === Admin ===
+GV --> UC_Approve
+GV --> UC_ApproveSchedule
+GV --> UC_RejectSchedule
+
+note right of UC_Extract
+  Model: ArcFace (Facenet512)
+  Detector: RetinaFace
+  Vector: 512 chiều
+end note
+
+note bottom of UC_RegSchedule
+  4 ca/ngày:
+  Ca 1: 07:00 - 09:40
+  Ca 2: 09:50 - 12:30
+  Ca 3: 13:30 - 16:10
+  Ca 4: 16:20 - 19:00
+end note
+
+note right of UC_Approve
+  Sinh viên mới đăng ký
+  có trạng thái
+  is_approved = False
+end note
+
+@enduml

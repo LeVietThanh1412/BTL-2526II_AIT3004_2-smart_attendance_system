@@ -4,14 +4,20 @@
 \addvspace {10\p@ }
 \contentsline {table}{\numberline {2.1}{\ignorespaces Bảng công nghệ chính của dự án}}{9}{table.caption.6}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {3.1}{\ignorespaces Mô tả các thực thể chính}}{14}{table.caption.13}%
+\contentsline {table}{\numberline {3.1}{\ignorespaces Mô tả Use Case phân hệ Đăng ký}}{13}{table.caption.9}%
+\contentsline {table}{\numberline {3.2}{\ignorespaces Mô tả Use Case phân hệ Điểm danh}}{15}{table.caption.11}%
+\contentsline {table}{\numberline {3.3}{\ignorespaces Mô tả Use Case phân hệ Quản trị}}{17}{table.caption.13}%
+\contentsline {table}{\numberline {3.4}{\ignorespaces Mô tả các thực thể chính}}{21}{table.caption.19}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {5.1}{\ignorespaces Danh sách dịch vụ chính trong Docker Compose}}{18}{table.caption.16}%
-\contentsline {table}{\numberline {5.2}{\ignorespaces Danh sách Docker Volumes chính}}{18}{table.caption.17}%
-\contentsline {table}{\numberline {5.3}{\ignorespaces Các biến môi trường quan trọng}}{19}{table.caption.18}%
+\contentsline {table}{\numberline {5.1}{\ignorespaces Danh sách dịch vụ chính trong Docker Compose}}{26}{table.caption.24}%
+\contentsline {table}{\numberline {5.2}{\ignorespaces Danh sách Docker Volumes chính}}{26}{table.caption.25}%
+\contentsline {table}{\numberline {5.3}{\ignorespaces Các biến môi trường quan trọng}}{27}{table.caption.26}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {6.1}{\ignorespaces Các kịch bản kiểm thử chức năng chính}}{20}{table.caption.19}%
-\contentsline {table}{\numberline {6.2}{\ignorespaces Bảng phân rã độ trễ cho luồng điểm danh}}{20}{table.caption.20}%
+\contentsline {table}{\numberline {6.1}{\ignorespaces Các kịch bản kiểm thử chức năng chính}}{28}{table.caption.27}%
+\contentsline {table}{\numberline {6.2}{\ignorespaces Bảng phân rã độ trễ cho luồng điểm danh}}{28}{table.caption.28}%
 \addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {8.1}{\ignorespaces Thông tin thành viên và tỉ lệ đóng góp}}{30}{table.caption.29}%
+\contentsline {table}{\numberline {8.2}{\ignorespaces Chi tiết nhiệm vụ của từng thành viên}}{30}{table.caption.30}%
 \addvspace {10\p@ }

@@ -1,0 +1,99 @@
+@startuml Software_Architecture
+!theme plain
+skinparam componentStyle uml2
+skinparam linetype ortho
+skinparam nodesep 50
+skinparam ranksep 60
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+skinparam rectangle {
+    BackgroundColor<<presentation>> #E3F2FD
+    BorderColor<<presentation>> #1565C0
+    BackgroundColor<<application>> #FFF3E0
+    BorderColor<<application>> #E65100
+    BackgroundColor<<ai>> #F3E5F5
+    BorderColor<<ai>> #6A1B9A
+    BackgroundColor<<data>> #E8F5E9
+    BorderColor<<data>> #2E7D32
+    BackgroundColor<<infra>> #FBE9E7
+    BorderColor<<infra>> #BF360C
+}
+
+title Smart Attendance System - Software Architecture Diagram\n(Kiến trúc phần mềm 3 tầng + AI Pipeline)
+
+actor "Sinh viên" as Student
+actor "Giảng viên\n/ Admin" as Admin
+
+rectangle "PRESENTATION LAYER\n(Tầng trình diễn)" <<presentation>> {
+    component "Vue 3 SPA\n(Vite Build)" as VueSPA {
+        [Trang Điểm danh\n(Check-in/Check-out)] as PageCheckin
+        [Trang Đăng ký\n(Ảnh / Video)] as PageRegister
+        [Dashboard Quản trị\n(Thống kê, Log, CSV)] as PageDashboard
+        [Quản lý SV\n& Lịch học] as PageManage
+    }
+    component "Nginx\nReverse Proxy" as Nginx
+}
+
+rectangle "APPLICATION LAYER\n(Tầng nghiệp vụ)" <<application>> {
+    component "FastAPI Backend" as FastAPI {
+        [Auth Module\n(JWT Login)] as AuthMod
+        [Members Module\n(CRUD Sinh viên)] as MemberMod
+        [Schedule Module\n(Quản lý lịch học)] as ScheduleMod
+        [Attendance Module\n(Điểm danh 1:1)] as AttendMod
+        [Dashboard Module\n(Thống kê, Xuất CSV)] as DashMod
+    }
+    component "APScheduler\nCronjob 23:59" as Scheduler
+}
+
+rectangle "AI PROCESSING LAYER\n(Tầng xử lý AI)" <<ai>> {
+    component "Celery Worker" as CeleryW {
+        [DeepFace\n(ArcFace Model)] as ArcFace
+        [RetinaFace\nFace Detector] as Retina
+        [Vector Extraction\n& Verification] as VecProcess
+    }
+}
+
+rectangle "DATA & STORAGE LAYER\n(Tầng dữ liệu)" <<data>> {
+    database "MySQL 8.0\n(Users, Schedules,\nAttendance Logs)" as MySQL
+    database "Qdrant Vector DB\n(Face Embeddings\n512-dim)" as Qdrant
+    database "MinIO S3\n(Ảnh gốc,\nẢnh điểm danh)" as MinIO
+    database "Redis\n(Message Broker\n& Cache)" as Redis
+}
+
+rectangle "INFRASTRUCTURE LAYER\n(Tầng hạ tầng)" <<infra>> {
+    component "Docker Compose\n(8 Containers)" as Docker
+    component "CI/CD Pipeline\n(GitHub Actions)" as CICD
+    component "Backup Service\n(MySQL dump,\nQdrant snapshot,\nMinIO mirror)" as Backup
+}
+
+' --- User connections ---
+Student -down-> Nginx : HTTP/HTTPS
+Admin -down-> Nginx : HTTP/HTTPS
+
+' --- Presentation to Application ---
+Nginx -down-> VueSPA : Serve SPA
+VueSPA -down-> FastAPI : REST API\n(/api/v1/*)
+
+' --- Application to AI ---
+AttendMod -down-> Redis : Đẩy Task\n(Celery)
+MemberMod -down-> Redis : Đẩy Task\n(Đăng ký ảnh)
+Redis -down-> CeleryW : Nhận Task
+
+' --- Application to Data ---
+FastAPI -down-> MySQL : SQLAlchemy\nORM
+FastAPI -down-> MinIO : Upload ảnh
+Scheduler -down-> MySQL : Quét vắng\n& cập nhật
+
+' --- AI to Data ---
+CeleryW -down-> Qdrant : Lưu/Truy vấn\nVector
+CeleryW -down-> MinIO : Tải ảnh\nxử lý
+CeleryW -left-> Redis : Trả kết quả
+
+' --- Infrastructure ---
+Docker -[hidden]right-> CICD
+Backup -up-> MySQL : Dump DB
+Backup -up-> Qdrant : Snapshot
+Backup -up-> MinIO : Mirror
+
+@enduml

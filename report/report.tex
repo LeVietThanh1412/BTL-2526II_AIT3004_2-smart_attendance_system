@@ -19,6 +19,7 @@
 \usepackage{url}
 \usepackage{setspace}
 \usepackage{microtype}
+\usepackage{enumitem}
 
 % Fix spacing and overflow issues (Overfull/Underfull \hbox)
 \tolerance=1000
@@ -87,6 +88,9 @@
 
 \begin{document}
 
+% =====================================================
+% TRANG BÌA
+% =====================================================
 \begin{titlepage}
     \centering
     \vspace*{1cm}
@@ -132,35 +136,17 @@
 
 \tableofcontents
 \newpage
-\listoffigures
-\newpage
-\listoftables
-\newpage
 
-\chapter*{Danh mục từ viết tắt}
-\addcontentsline{toc}{chapter}{Danh mục từ viết tắt}
-\begin{longtable}{>{\raggedright\arraybackslash}p{4cm} >{\raggedright\arraybackslash}p{11cm}}
-\textbf{Từ viết tắt} & \textbf{Ý nghĩa} \\
-\midrule
-AI & Artificial Intelligence (Trí tuệ nhân tạo) \\
-API & Application Programming Interface (Giao diện lập trình ứng dụng) \\
-CI/CD & Continuous Integration / Continuous Deployment \\
-CNN & Convolutional Neural Network (Mạng nơ-ron tích chập) \\
-DB & Database (Cơ sở dữ liệu) \\
-ERD & Entity-Relationship Diagram (Sơ đồ thực thể liên kết) \\
-REST & Representational State Transfer \\
-HNSW & Hierarchical Navigable Small World \\
-JWT & JSON Web Token \\
-\end{longtable}
-\newpage
-
-\chapter{Tổng quan dự án}
+% =====================================================
+% CHƯƠNG 1: GIỚI THIỆU ĐỀ TÀI
+% =====================================================
+\chapter{Giới thiệu đề tài}
 
 \section{Bối cảnh và bài toán}
 Chuyển đổi số trong giáo dục đòi hỏi các hệ thống quản lý học vụ phải chính xác, minh bạch và giảm tối đa thao tác thủ công. Các phương pháp điểm danh truyền thống (gọi tên, thẻ từ, vân tay) đều gặp hạn chế về thời gian, chi phí và khả năng gian lận. Dự án \textbf{Smart Attendance System} hướng tới một quy trình điểm danh tự động hóa bằng nhận diện khuôn mặt, bảo đảm xác minh đúng danh tính theo mã sinh viên.
 
 \section{Mục tiêu}
-\begin{itemize}
+\begin{itemize}[leftmargin=*]
     \item \textbf{Xác minh 1-1 theo mã sinh viên}: hạn chế nhầm lẫn và loại bỏ điểm danh hộ.
     \item \textbf{Tối ưu thời gian}: giảm thời gian điểm danh xuống mức giây cho mỗi lượt.
     \item \textbf{Kiến trúc mở rộng}: tách luồng AI ra khỏi API bằng Celery/Redis để xử lý đồng thời nhiều yêu cầu.
@@ -168,7 +154,7 @@ Chuyển đổi số trong giáo dục đòi hỏi các hệ thống quản lý 
 \end{itemize}
 
 \section{Phạm vi và đối tượng sử dụng}
-Hệ thống xử lý hai luồng nghiệp vụ chính: \textit{Đăng ký hồ sơ sinh viên} và \textit{Điểm danh \\ Quản trị}.
+Hệ thống xử lý hai luồng nghiệp vụ chính: \textit{Đăng ký hồ sơ sinh viên} và \textit{Điểm danh \& Quản trị}.
 
 \begin{table}[H]
 \centering
@@ -181,26 +167,87 @@ Hệ thống xử lý hai luồng nghiệp vụ chính: \textit{Đăng ký hồ 
 \caption{Đối tượng sử dụng và phạm vi nghiệp vụ}
 \end{table}
 
-\chapter{Yêu cầu và công nghệ}
+% =====================================================
+% CHƯƠNG 2: THÀNH VIÊN VÀ PHÂN CÔNG NHIỆM VỤ
+% =====================================================
+\chapter{Thành viên và phân công nhiệm vụ}
 
-\section{Yêu cầu chức năng}
-\begin{itemize}
-    \item Đăng ký sinh viên bằng ảnh hoặc video, lưu vector khuôn mặt.
-    \item Quản lý lịch học theo ca, có cơ chế duyệt/huỷ.
-    \item Điểm danh 1-1 theo mã sinh viên, hỗ trợ check-in/check-out đa phiên.
-    \item Cronjob 23:59 tự động quét vắng và đánh dấu quên check-out theo lịch học.
-    \item Phát hiện đi muộn theo ngưỡng thời gian, cảnh báo và lưu log.
-    \item Dashboard thống kê, nhật ký điểm danh, thông báo và xuất báo cáo CSV.
-    \item Quản trị người dùng và quyền truy cập thông qua JWT.
-\end{itemize}
+\section{Danh sách thành viên}
+Bảng \ref{tab:thanhvien} trình bày thông tin các thành viên trong nhóm, vai trò chính và tỉ lệ đóng góp vào dự án.
 
-\section{Yêu cầu phi chức năng}
-\begin{itemize}
-    \item Độ trễ xử lý thấp (mục tiêu dưới 2 giây mỗi lượt điểm danh trong môi trường demo).
-    \item Khả năng mở rộng bằng cách tăng số lượng worker.
-    \item Dữ liệu ảnh và vector lưu tách rời, bảo đảm an toàn và dễ sao lưu.
-    \item Dễ triển khai với Docker Compose, cấu hình bằng biến môi trường.
-\end{itemize}
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|c|X|l|c|}
+\hline
+\textbf{STT} & \textbf{MSSV} & \textbf{Họ và tên} & \textbf{Vai trò chính} & \textbf{Đóng góp} \\ \hline
+1 & 24022454 & Lê Việt Thành & Trưởng nhóm, DevOps & 25\% \\ \hline
+2 & 24022406 & Nguyễn Nhật Minh & Backend Developer & 25\% \\ \hline
+3 & 24022364 & Tạ Duy Khánh & AI/Worker Developer & 25\% \\ \hline
+4 & 24022394 & Nguyễn Đức Mạnh & Frontend Developer & 25\% \\ \hline
+\end{tabularx}
+\caption{Thông tin thành viên và tỉ lệ đóng góp}
+\label{tab:thanhvien}
+\end{table}
+
+\section{Phân công nhiệm vụ chi tiết}
+Bảng \ref{tab:phancong} mô tả chi tiết nhiệm vụ được giao cho từng thành viên trong suốt quá trình phát triển dự án.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Thành viên} & \textbf{Nhiệm vụ chi tiết} \\ \hline
+Lê Việt Thành & Thiết kế kiến trúc hệ thống, cấu hình Docker Compose, thiết lập CI/CD pipeline, cấu hình Nginx reverse proxy, xây dựng Backup Service, triển khai hệ thống lên Internet (SSL + domain), viết tài liệu báo cáo. \\ \hline
+Nguyễn Nhật Minh & Phát triển API FastAPI (Auth, Members, Schedule, Attendance, Dashboard), thiết kế database schema MySQL, xây dựng Scheduler/Cronjob quét vắng mặt, tích hợp xác thực JWT, xử lý logic điểm danh đa phiên. \\ \hline
+Tạ Duy Khánh & Xây dựng Celery Worker, tích hợp DeepFace (ArcFace/RetinaFace), triển khai Qdrant Vector DB, phát triển pipeline trích xuất và so khớp vector khuôn mặt, cấu hình Redis cache cho embeddings. \\ \hline
+Nguyễn Đức Mạnh & Phát triển giao diện Vue 3 SPA, xây dựng trang điểm danh sinh viên, dashboard quản trị, giao diện quản lý sinh viên và lịch học, thiết kế UI/UX, tích hợp API với frontend. \\ \hline
+\end{tabularx}
+\caption{Chi tiết nhiệm vụ của từng thành viên}
+\label{tab:phancong}
+\end{table}
+
+% =====================================================
+% CHƯƠNG 3: KIẾN TRÚC PHẦN MỀM
+% =====================================================
+\chapter{Kiến trúc phần mềm}
+
+\section{Tổng quan kiến trúc}
+Hệ thống Smart Attendance System được thiết kế theo kiến trúc \textbf{Microservices}, chia thành 5 tầng chính (Hình \ref{fig:sw_arch}):
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Presentation Layer} (Tầng trình diễn): Giao diện người dùng Vue 3 SPA được phục vụ qua Nginx reverse proxy, cung cấp các trang chức năng cho sinh viên (đăng ký, điểm danh) và giảng viên (dashboard, quản lý).
+    \item \textbf{Application Layer} (Tầng nghiệp vụ): FastAPI backend xử lý toàn bộ logic nghiệp vụ bao gồm xác thực JWT, quản lý sinh viên, lịch học, điểm danh và thống kê. APScheduler chạy cronjob 23:59 hàng ngày để quét vắng mặt tự động.
+    \item \textbf{AI Processing Layer} (Tầng xử lý AI): Celery Worker chạy nền, sử dụng DeepFace (mô hình ArcFace) để trích xuất vector khuôn mặt 512 chiều và RetinaFace để phát hiện khuôn mặt, thực hiện xác minh 1-1 với Qdrant Vector DB.
+    \item \textbf{Data \& Storage Layer} (Tầng dữ liệu): Bao gồm MySQL 8.0 (dữ liệu quan hệ), Qdrant (vector embeddings), MinIO S3 (object storage cho ảnh), và Redis (message broker + cache).
+    \item \textbf{Infrastructure Layer} (Tầng hạ tầng): Docker Compose đóng gói 8 container, CI/CD pipeline tự động build, và Backup Service sao lưu định kỳ.
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{software_architecture.png}
+    \caption{Sơ đồ kiến trúc phần mềm (Software Architecture Diagram)}
+    \label{fig:sw_arch}
+\end{figure}
+
+\section{Sơ đồ thành phần}
+Sơ đồ thành phần (Hình \ref{fig:component}) chi tiết hóa các module bên trong mỗi tầng và luồng giao tiếp giữa chúng.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{component.png}
+    \caption{Sơ đồ thành phần (Component Diagram)}
+    \label{fig:component}
+\end{figure}
+
+\section{Sơ đồ triển khai}
+Hệ thống triển khai trên Docker Host với 8 container kết nối qua bridge network \texttt{attendance\_net} (Hình \ref{fig:deployment}).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{deployment.png}
+    \caption{Sơ đồ triển khai (Deployment Diagram) với Docker}
+    \label{fig:deployment}
+\end{figure}
 
 \section{Công nghệ sử dụng}
 \begin{table}[H]
@@ -221,7 +268,29 @@ Deploy & Docker Compose & Đóng gói, triển khai nhanh toàn hệ thống. \\
 \caption{Bảng công nghệ chính của dự án}
 \end{table}
 
-\chapter{Phân tích và thiết kế}
+\section{Luồng xử lý chính}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth,height=0.70\textheight,keepaspectratio]{sequency.png}
+    \caption{Sơ đồ tuần tự cho luồng đăng ký/điểm danh}
+    \label{fig:sequence}
+\end{figure}
+
+Hình \ref{fig:sequence} mô tả chuỗi xử lý chính: frontend gửi yêu cầu, backend kiểm tra dữ liệu và tải ảnh lên MinIO, sau đó đẩy tác vụ vào Redis để worker trích xuất vector, so khớp với Qdrant và trả kết quả về backend ghi log.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth,height=0.65\textheight,keepaspectratio]{activity_diem_danh.png}
+    \caption{Sơ đồ hoạt động cho luồng điểm danh 1-1}
+    \label{fig:activity}
+\end{figure}
+
+Hình \ref{fig:activity} thể hiện luồng xác minh 1-1 theo mã sinh viên: nếu không có mã hoặc không tồn tại dữ liệu vector thì trả lỗi sớm; nếu có, worker trích xuất vector, tính độ tương đồng với ngưỡng, trả về kết quả khớp/không khớp.
+
+% =====================================================
+% CHƯƠNG 4: USE CASE DIAGRAM
+% =====================================================
+\chapter{Phân tích Use Case}
 
 \section{Use Case tổng thể}
 Sơ đồ Use Case tổng thể (Hình \ref{fig:usecase}) thể hiện toàn bộ chức năng của hệ thống theo ba nhóm tác nhân chính: Sinh viên, Quản lý/Giảng viên, và Hệ thống tự động.
@@ -234,13 +303,13 @@ Sơ đồ Use Case tổng thể (Hình \ref{fig:usecase}) thể hiện toàn b�
 \end{figure}
 
 Hệ thống bao gồm các nhóm chức năng sau:
-\begin{itemize}
+\begin{itemize}[leftmargin=*]
     \item \textbf{Sinh viên}: Đăng ký khuôn mặt (ảnh/video), đăng ký lịch học, đổi ca học, điểm danh check-in/check-out, xem lịch sử cá nhân.
     \item \textbf{Quản lý/Giảng viên}: Đăng nhập quản trị, duyệt sinh viên, quản lý lịch học (duyệt/từ chối), sửa trạng thái điểm danh, xem dashboard thống kê, xem nhật ký, xuất CSV, xem thông báo.
     \item \textbf{Hệ thống}: Trích xuất vector khuôn mặt (AI), nhận diện khuôn mặt (AI), phát hiện đi muộn, Cronjob quét vắng mặt tự động lúc 23:59.
 \end{itemize}
 
-\subsection{Use Case chi tiết: Đăng ký sinh viên}
+\section{Use Case chi tiết: Đăng ký sinh viên}
 Sơ đồ dưới đây (Hình \ref{fig:usecase_dangky}) mô tả chi tiết quy trình đăng ký sinh viên mới, bao gồm đăng ký khuôn mặt (bằng ảnh hoặc video), đăng ký lịch học theo ca, và quy trình xét duyệt bởi giảng viên.
 
 \begin{figure}[H]
@@ -258,12 +327,12 @@ Sơ đồ dưới đây (Hình \ref{fig:usecase_dangky}) mô tả chi tiết quy
 Đăng ký khuôn mặt & Sinh viên tải ảnh (base64) hoặc quay video. Hệ thống trích xuất vector 512 chiều bằng ArcFace, lưu vào Qdrant và ảnh gốc vào MinIO. \\ \hline
 Đăng ký lịch học & Sinh viên chọn thứ và ca học (4 ca/ngày). Lịch ở trạng thái chờ duyệt. \\ \hline
 Duyệt sinh viên & Giảng viên duyệt tài khoản mới (is\_approved = True). \\ \hline
-Duyệt/Từ chối lịch học & Giảng viên phê duyệt hoặc từ chối yêu cầu lịch. Lịch cũ bị vô hiệu hóa khi có lịch mới được duyệt. \\ \hline
+Duyệt/Từ chối lịch & Giảng viên phê duyệt hoặc từ chối yêu cầu lịch. Lịch cũ bị vô hiệu hóa khi có lịch mới được duyệt. \\ \hline
 \end{tabularx}
 \caption{Mô tả Use Case phân hệ Đăng ký}
 \end{table}
 
-\subsection{Use Case chi tiết: Điểm danh}
+\section{Use Case chi tiết: Điểm danh}
 Sơ đồ dưới đây (Hình \ref{fig:usecase_diemdanh}) mô tả chi tiết quy trình điểm danh đa phiên, bao gồm check-in, check-out, nhận diện khuôn mặt AI, phát hiện đi muộn và xử lý tự động cuối ngày.
 
 \begin{figure}[H]
@@ -286,8 +355,8 @@ Cronjob quét vắng & Lúc 23:59, quét từng ca đã đăng ký. Tạo log v�
 \caption{Mô tả Use Case phân hệ Điểm danh}
 \end{table}
 
-\subsection{Use Case chi tiết: Quản trị hệ thống}
-Sơ đồ dưới đây (Hình \ref{fig:usecase_quantri}) mô tả chi tiết các chức năng quản trị dành cho giảng viên/admin, bao gồm quản lý sinh viên, quản lý lịch học, override điểm danh, dashboard và báo cáo.
+\section{Use Case chi tiết: Quản trị hệ thống}
+Sơ đồ dưới đây (Hình \ref{fig:usecase_quantri}) mô tả chi tiết các chức năng quản trị dành cho giảng viên/admin.
 
 \begin{figure}[H]
     \centering
@@ -305,128 +374,20 @@ Sơ đồ dưới đây (Hình \ref{fig:usecase_quantri}) mô tả chi tiết c�
 Duyệt/Xóa sinh viên & Phê duyệt tài khoản sinh viên mới hoặc xóa sinh viên khỏi hệ thống. \\ \hline
 Quản lý lịch học & Duyệt/từ chối yêu cầu đổi ca. Xem lịch sử đổi ca của sinh viên. \\ \hline
 Override điểm danh & Ghi đè trạng thái: đi muộn/đúng giờ, đánh dấu vắng, đánh dấu quên check-out. \\ \hline
-Dashboard thống kê & Xem tổng quan: tổng sinh viên, đi học, đi muộn, vắng mặt (dùng DISTINCT user\_id). \\ \hline
+Dashboard thống kê & Xem tổng quan: tổng sinh viên, đi học, đi muộn, vắng mặt. \\ \hline
 Xuất CSV & Xuất nhật ký điểm danh chi tiết ra file CSV để phục vụ báo cáo. \\ \hline
 \end{tabularx}
 \caption{Mô tả Use Case phân hệ Quản trị}
 \end{table}
 
-\section{Kiến trúc tổng thể}
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.95\textwidth]{component.png}
-    \caption{Sơ đồ thành phần (Component Diagram)}
-    \label{fig:component}
-\end{figure}
+% =====================================================
+% CHƯƠNG 5: MÀN HÌNH GIAO DIỆN
+% =====================================================
+\chapter{Màn hình giao diện}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.95\textwidth]{deployment.png}
-    \caption{Sơ đồ triển khai (Deployment Diagram) với Docker}
-    \label{fig:deployment}
-\end{figure}
+Chương này trình bày các màn hình giao diện chính của hệ thống, minh họa luồng thao tác từ đăng nhập, quản trị đến điểm danh.
 
-\section{Luồng xử lý}
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.90\textwidth,height=0.75\textheight,keepaspectratio]{sequency.png}
-    \caption{Sơ đồ tuần tự cho luồng đăng ký/điểm danh}
-    \label{fig:sequence}
-\end{figure}
-
-Hình \ref{fig:sequence} mô tả chuỗi xử lý chính: frontend gửi yêu cầu, backend kiểm tra dữ liệu và tải ảnh lên MinIO, sau đó đẩy tác vụ vào Redis để worker trích xuất vector, so khớp với Qdrant và trả kết quả về backend ghi log.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.90\textwidth,height=0.75\textheight,keepaspectratio]{activity_diem_danh.png}
-    \caption{Sơ đồ hoạt động cho luồng điểm danh 1-1}
-    \label{fig:activity}
-\end{figure}
-
-Hình \ref{fig:activity} thể hiện luồng xác minh 1-1 theo mã sinh viên: nếu không có mã hoặc không tồn tại dữ liệu vector thì trả lỗi sớm; nếu có, worker trích xuất vector, tính độ tương đồng với ngưỡng, trả về kết quả khớp/không khớp để backend ghi nhận.
-
-\section{Thiết kế cơ sở dữ liệu}
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.8\textwidth]{csdl.png}
-    \caption{Sơ đồ ERD cơ sở dữ liệu}
-    \label{fig:erd}
-\end{figure}
-
-\begin{table}[H]
-\centering
-\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{0.48\textwidth}|>{\raggedright\arraybackslash}p{0.48\textwidth}|}
-\hline
-\textbf{Bảng/Collection} & \textbf{Mô tả} \\ \hline
-users & Thông tin sinh viên, trạng thái duyệt. \\ \hline
-student\_schedules & Lịch học theo ngày/ca, trạng thái duyệt và lịch sử đổi ca. \\ \hline
-attendances & Log điểm danh (check-in/check-out), trạng thái, độ tin cậy. \\ \hline
-face\_embeddings (Qdrant) & Vector khuôn mặt 512 chiều, payload student\_id. \\ \hline
-\end{tabularx}
-\caption{Mô tả các thực thể chính}
-\end{table}
-
-\chapter{Hiện thực hóa hệ thống}
-
-\section{Cấu trúc mã nguồn}
-\begin{lstlisting}[language=bash, caption={Tổ chức thư mục dự án theo chuẩn Microservices}]
-.
-|-- docker-compose.yml
-|-- docker-compose-network.yml
-|-- backend/
-|-- worker/
-|-- frontend/
-|-- nginx/
-|-- backup/
-|-- uml/
-|-- report/
-\end{lstlisting}
-
-\section{Backend API}
-Hệ thống API được tổ chức theo chuẩn REST, nhóm theo các module: Auth, Members, Schedule, Attendance, Dashboard.
-
-\begin{longtable}{|>{\raggedright\arraybackslash}p{0.45\textwidth}|>{\raggedright\arraybackslash}p{0.50\textwidth}|}
-\hline
-\textbf{Endpoint} & \textbf{Chức năng} \\ \hline
-\apipath{/api/v1/auth/login} & Đăng nhập admin, trả JWT. \\ \hline
-\apipath{/api/v1/members/register} & Đăng ký sinh viên bằng ảnh base64. \\ \hline
-\apipath{/api/v1/members/register-video} & Đăng ký sinh viên bằng video. \\ \hline
-\apipath{/api/v1/members} & Danh sách sinh viên. \\ \hline
-\apipath{/api/v1/members/{student_id}/approve} & Duyệt sinh viên. \\ \hline
-\apipath{/api/v1/members/{student_id} (DELETE)} & Xóa sinh viên. \\ \hline
-\apipath{/api/v1/schedule/{student_id}} & Xem/cập nhật lịch học. \\ \hline
-\apipath{/api/v1/schedule/{student_id}/approve} & Duyệt lịch học. \\ \hline
-\apipath{/api/v1/schedule/{student_id}/reject} & Từ chối lịch học. \\ \hline
-\apipath{/api/v1/schedule/{student_id}/history} & Lịch sử đổi ca. \\ \hline
-\apipath{/api/v1/attendance/check-in} & Điểm danh (check-in hoặc check-out). \\ \hline
-\apipath{/api/v1/attendance/{attendance_id}/override} & Sửa trạng thái điểm danh. \\ \hline
-\apipath{/api/v1/dashboard/statistics} & Thống kê điểm danh trong ngày. \\ \hline
-\apipath{/api/v1/dashboard/recent-activities} & Hoạt động gần đây. \\ \hline
-\apipath{/api/v1/dashboard/attendance-logs} & Nhật ký điểm danh phân trang. \\ \hline
-\apipath{/api/v1/dashboard/notifications} & Đếm thông báo. \\ \hline
-\apipath{/api/v1/dashboard/notifications/list} & Danh sách thông báo. \\ \hline
-\apipath{/api/v1/dashboard/export-attendance} & Xuất CSV nhật ký điểm danh. \\ \hline
-\apipath{/health} & Kiểm tra trạng thái dịch vụ. \\ \hline
-\end{longtable}
-
-\section{Luồng điểm danh và xử lý đa phiên}
-Luồng điểm danh sử dụng cơ chế xác minh 1-1 theo mã sinh viên. Backend kiểm tra lịch học đã duyệt, gửi ảnh lên MinIO, đẩy tác vụ tới Celery Worker, nhận kết quả khớp để ghi log. Một ngày có thể có nhiều phiên học, vì vậy hệ thống hỗ trợ \textit{multi-session}:
-\begin{itemize}
-    \item \textbf{Check-in}: được phép từ 30 phút trước ca đến khi ca kết thúc.
-    \item \textbf{Check-out}: chỉ hợp lệ trong 30 phút cuối ca và 30 phút sau khi ca kết thúc.
-    \item \textbf{Đi muộn}: nếu check-in sau 15 phút kể từ thời điểm bắt đầu ca.
-\end{itemize}
-
-Cuối ngày (23:59), scheduler tự động quét các ca học đã đăng ký: nếu không có phiên điểm danh giao cắt thì tạo log vắng mặt, đồng thời đánh dấu các phiên thiếu check-out là \textit{present\_incomplete}.
-
-\section{AI Worker và Vector DB}
-Worker sử dụng DeepFace (ArcFace) để trích xuất vector 512 chiều, kết hợp bộ dò tìm mặt RetinaFace (có thể cấu hình qua biến môi trường). Vector được so khớp trên Qdrant với bộ lọc \texttt{student\_id}, tránh quét toàn bộ dữ liệu và giữ độ chính xác cao.
-
-\section{Frontend}
-Giao diện Vue 3 gồm hai vai trò: Sinh viên (check-in/check-out, nhập mã sinh viên) và Admin (dashboard thống kê, duyệt sinh viên, duyệt lịch học, xem log, xuất CSV).
-
-\section{Giao diện demo}
-Các màn hình dưới đây minh họa luồng thao tác chính của hệ thống từ đăng nhập, theo dõi thống kê đến điểm danh.
+\section{Giao diện quản trị (Admin)}
 
 \begin{figure}[H]
     \centering
@@ -445,12 +406,9 @@ Các màn hình dưới đây minh họa luồng thao tác chính của hệ th�
     \label{fig:demo_admin}
 \end{figure}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\textwidth]{dang_ki_diem_danh.png}
-    \caption{Màn hình đăng ký điểm danh cho sinh viên}
-    \label{fig:demo_checkin}
-\end{figure}
+\textbf{Đăng nhập Admin} (Hình \ref{fig:demo_admin}a): Giảng viên đăng nhập bằng tài khoản quản trị, hệ thống xác thực JWT và chuyển hướng tới dashboard.
+
+\textbf{Dashboard thống kê} (Hình \ref{fig:demo_admin}b): Hiển thị tổng quan số liệu điểm danh trong ngày, bao gồm tổng sinh viên, số người đi học, đi muộn, vắng mặt, cùng biểu đồ trực quan.
 
 \begin{figure}[H]
     \centering
@@ -458,6 +416,19 @@ Các màn hình dưới đây minh họa luồng thao tác chính của hệ th�
     \caption{Màn hình quản lý sinh viên (Admin)}
     \label{fig:demo_quanlysv}
 \end{figure}
+
+\textbf{Quản lý sinh viên} (Hình \ref{fig:demo_quanlysv}): Giao diện danh sách sinh viên cho phép admin duyệt tài khoản mới, xem thông tin chi tiết và xóa sinh viên khỏi hệ thống.
+
+\section{Giao diện sinh viên}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{dang_ki_diem_danh.png}
+    \caption{Màn hình đăng ký điểm danh cho sinh viên}
+    \label{fig:demo_checkin}
+\end{figure}
+
+\textbf{Đăng ký điểm danh} (Hình \ref{fig:demo_checkin}): Sinh viên nhập mã số, chụp ảnh khuôn mặt qua camera hoặc tải ảnh lên. Hệ thống tự động trích xuất vector khuôn mặt và lưu vào cơ sở dữ liệu.
 
 \begin{figure}[H]
     \centering
@@ -476,10 +447,45 @@ Các màn hình dưới đây minh họa luồng thao tác chính của hệ th�
     \label{fig:demo_sv}
 \end{figure}
 
+\textbf{Đổi ca học} (Hình \ref{fig:demo_sv}a): Sinh viên có thể yêu cầu đổi ca học sang ca khác, yêu cầu được gửi về hệ thống chờ giảng viên duyệt.
+
+\textbf{Điểm danh} (Hình \ref{fig:demo_sv}b): Sinh viên nhập MSSV, chụp ảnh khuôn mặt. Hệ thống xác minh 1-1 và ghi nhận trạng thái check-in/check-out theo ca học.
+
+% =====================================================
+% CHƯƠNG 6: THIẾT KẾ CƠ SỞ DỮ LIỆU
+% =====================================================
+\chapter{Thiết kế cơ sở dữ liệu}
+
+\section{Sơ đồ ERD}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{csdl.png}
+    \caption{Sơ đồ ERD cơ sở dữ liệu}
+    \label{fig:erd}
+\end{figure}
+
+\section{Mô tả các thực thể chính}
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{0.45\textwidth}|>{\raggedright\arraybackslash}p{0.50\textwidth}|}
+\hline
+\textbf{Bảng/Collection} & \textbf{Mô tả} \\ \hline
+users & Thông tin sinh viên: MSSV, họ tên, trạng thái duyệt (is\_approved), số ảnh đã đăng ký. \\ \hline
+student\_schedules & Lịch học theo ngày/ca, trạng thái duyệt (pending/approved/rejected) và lịch sử đổi ca. \\ \hline
+attendances & Log điểm danh chi tiết: loại (check-in/check-out), trạng thái (present/late/absent), thời gian, độ tin cậy. \\ \hline
+face\_embeddings (Qdrant) & Vector khuôn mặt 512 chiều lưu trên Qdrant Vector DB, payload chứa student\_id để lọc khi xác minh 1-1. \\ \hline
+\end{tabularx}
+\caption{Mô tả các thực thể chính}
+\end{table}
+
+% =====================================================
+% CHƯƠNG 7: TRIỂN KHAI VÀ VẬN HÀNH
+% =====================================================
 \chapter{Triển khai và vận hành}
 
-\section{Docker Compose và dịch vụ}
-Hệ thống đóng gói 8 container độc lập:
+\section{Kiến trúc Docker Compose}
+Hệ thống đóng gói 8 container độc lập, giao tiếp qua bridge network \texttt{attendance\_net}:
+
 \begin{table}[H]
 \centering
 \begin{tabularx}{\textwidth}{|l|X|l|}
@@ -494,139 +500,37 @@ qdrant & Vector DB & 6333 \\ \hline
 minio & Object Storage & 9000/9001 \\ \hline
 backup & Sao lưu định kỳ & - \\ \hline
 \end{tabularx}
-\caption{Danh sách dịch vụ chính trong Docker Compose}
+\caption{Danh sách dịch vụ trong Docker Compose}
 \end{table}
 
-\section{Docker Volumes}
-Các volume được sử dụng để lưu dữ liệu bền vững và cache model:
-\begin{table}[H]
-\centering
-\begin{tabularx}{\textwidth}{|l|X|}
-\hline
-\textbf{Volume} & \textbf{Mục đích} \\ \hline
-mysql\_data & Lưu dữ liệu MySQL. \\ \hline
-qdrant\_data & Lưu vector embeddings trong Qdrant. \\ \hline
-minio\_data & Lưu object storage (ảnh điểm danh). \\ \hline
-deepface\_data & Cache model DeepFace trong worker. \\ \hline
-\end{tabularx}
-\caption{Danh sách Docker Volumes chính}
-\end{table}
-
-\clearpage
-\section{Cấu hình môi trường}
-Các biến môi trường quan trọng nằm trong file \texttt{.env}:
-\begin{table}[H]
-\centering
-\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{0.48\textwidth}|>{\raggedright\arraybackslash}p{0.48\textwidth}|}
-\hline
-\textbf{Biến} & \textbf{Ý nghĩa} \\ \hline
-\code{DATABASE_URL / MYSQL_*} & Thông tin kết nối MySQL. \\ \hline
-\code{QDRANT_URL, QDRANT_COLLECTION} & Kết nối và tên collection Qdrant. \\ \hline
-\code{MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY} & Kết nối MinIO. \\ \hline
-\code{FACE_MATCH_THRESHOLD} & Ngưỡng khớp khuôn mặt. \\ \hline
-\code{DEEPFACE_MODEL_NAME, FACE_DETECTOR_BACKEND} & Cấu hình mô hình và detector. \\ \hline
-\code{ADMIN_USERNAME, ADMIN_PASSWORD, JWT_SECRET} & Tài khoản quản trị và khóa JWT. \\ \hline
-\code{TIME_LATE} & Ngưỡng xác định đi muộn. \\ \hline
-\end{tabularx}
-\caption{Các biến môi trường quan trọng}
-\end{table}
-
-\section{Sao lưu dữ liệu}
-Container \texttt{backup} thực hiện sao lưu định kỳ MySQL, snapshot Qdrant và đồng bộ ảnh từ MinIO về thư mục \texttt{local\_backups/}. Chính sách retention mặc định giữ 7 ngày gần nhất để tối ưu dung lượng.
-
-\chapter{Kiểm thử và đánh giá}
-
-\section{Kịch bản kiểm thử}
-\begin{table}[H]
-\centering
-\begin{tabularx}{\textwidth}{|l|X|}
-\hline
-\textbf{Tình huống} & \textbf{Kỳ vọng} \\ \hline
-Đúng người, đúng student\_id & Điểm danh thành công. \\ \hline
-Sai người, đúng student\_id & Thất bại, trả về lý do không khớp. \\ \hline
-Đúng người, sai student\_id & Thất bại, trả về điểm thấp. \\ \hline
-Thiếu student\_id & Trả lỗi 400. \\ \hline
-student\_id chưa đăng ký vector & Trả lỗi 404. \\ \hline
-Check-out trước giờ cho phép & Trả lỗi không hợp lệ. \\ \hline
-\end{tabularx}
-\caption{Các kịch bản kiểm thử chức năng chính}
-\end{table}
-
-\section{Đánh giá hiệu năng (tham khảo)}
-\begin{table}[H]
-\centering
-\begin{tabularx}{\textwidth}{|X|c|X|}
-\hline
-\textbf{Công đoạn xử lý} & \textbf{Thời gian (ms)} & \textbf{Ghi chú} \\ \hline
-FastAPI upload MinIO & $\sim 50$ & I/O nội bộ. \\ \hline
-Celery + DeepFace inference & $\sim 800$ & Sau khi pre-warm model. \\ \hline
-Qdrant 1-1 verification & $\sim 20$ & Lọc theo student\_id. \\ \hline
-Tổng end-to-end & $< 1.5$ giây & Môi trường demo nội bộ. \\ \hline
-\end{tabularx}
-\caption{Bảng phân rã độ trễ cho luồng điểm danh}
-\end{table}
-
-\section{Hạn chế}
-\begin{itemize}
-    \item Chưa tích hợp \textit{liveness detection}, dễ bị spoof bằng ảnh tĩnh.
-    \item Điều kiện ánh sáng kém hoặc che mặt có thể giảm độ chính xác.
+\section{Tính năng nâng cao}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{CI/CD}: Pipeline tự động build và đóng gói Docker image qua GitHub Actions, đảm bảo quy trình phát hành nhất quán.
+    \item \textbf{Triển khai Internet}: Hệ thống được public qua domain \code{https://attendance.thanhtech.cloud} với SSL và Nginx gateway.
+    \item \textbf{Backup dữ liệu}: Container backup định kỳ dump MySQL, snapshot Qdrant và mirror MinIO, giữ lịch sử 7 ngày.
+    \item \textbf{Quản lý cấu hình}: Tham số mô hình AI và ngưỡng nhận diện cấu hình linh hoạt qua file \texttt{.env}.
 \end{itemize}
 
-\chapter{Tính năng nâng cao}
-
-\section{Các hạng mục đã triển khai}
-Nhóm đã hoàn thiện một số hạng mục nâng cao nhằm tăng tính sẵn sàng, khả năng triển khai và vận hành thực tế:
-\begin{itemize}
-    \item \textbf{CI/CD}: thiết lập pipeline tự động build và đóng gói Docker image, đảm bảo quy trình phát hành nhất quán.
-    \item \textbf{Triển khai Internet}: hệ thống được public qua domain:\\
-    \code{https://attendance.thanhtech.cloud} với SSL và Nginx gateway.
-    \item \textbf{Backup dữ liệu}: container backup định kỳ dump MySQL, snapshot Qdrant và mirror MinIO, giữ lịch sử 7 ngày.
-    \item \textbf{Quản lý cấu hình model/pipeline}: tham số mô hình và ngưỡng nhận diện cấu hình qua \texttt{.env} (\code{DEEPFACE_MODEL_NAME}, \code{FACE_DETECTOR_BACKEND}, \code{FACE_MATCH_THRESHOLD}).
-    \item \textbf{Cache và hiệu năng}: Redis làm broker/cache, TTL cho embedding giúp giảm tải truy vấn và ổn định độ trễ.
-\end{itemize}
-
-\chapter{Phân công nhiệm vụ}
-
-Bảng dưới đây trình bày chi tiết phân công nhiệm vụ của từng thành viên trong nhóm và tỉ lệ đóng góp tương ứng.
-
-\begin{table}[H]
-\centering
-\begin{tabularx}{\textwidth}{|c|c|X|l|c|}
-\hline
-\textbf{STT} & \textbf{MSSV} & \textbf{Họ và tên} & \textbf{Vai trò chính} & \textbf{Tỉ lệ} \\ \hline
-1 & 24022454 & Lê Việt Thành & Trưởng nhóm, DevOps & 25\% \\ \hline
-2 & 24022406 & Nguyễn Nhật Minh & Backend Developer & 25\% \\ \hline
-3 & 24022364 & Tạ Duy Khánh & AI/Worker Developer & 25\% \\ \hline
-4 & 24022394 & Nguyễn Đức Mạnh & Frontend Developer & 25\% \\ \hline
-\end{tabularx}
-\caption{Thông tin thành viên và tỉ lệ đóng góp}
-\label{tab:thanhvien}
-\end{table}
-
-\begin{table}[H]
-\centering
-\begin{tabularx}{\textwidth}{|l|X|}
-\hline
-\textbf{Thành viên} & \textbf{Nhiệm vụ chi tiết} \\ \hline
-Lê Việt Thành & Thiết kế kiến trúc hệ thống, cấu hình Docker Compose, thiết lập CI/CD pipeline, cấu hình Nginx reverse proxy, xây dựng Backup Service, triển khai hệ thống lên Internet (SSL + domain), viết tài liệu báo cáo. \\ \hline
-Nguyễn Nhật Minh & Phát triển API FastAPI (Auth, Members, Schedule, Attendance, Dashboard), thiết kế database schema MySQL, xây dựng Scheduler/Cronjob quét vắng mặt, tích hợp xác thực JWT, xử lý logic điểm danh đa phiên. \\ \hline
-Tạ Duy Khánh & Xây dựng Celery Worker, tích hợp DeepFace (ArcFace/RetinaFace), triển khai Qdrant Vector DB, phát triển pipeline trích xuất và so khớp vector khuôn mặt, cấu hình Redis cache cho embeddings. \\ \hline
-Nguyễn Đức Mạnh & Phát triển giao diện Vue 3 SPA, xây dựng trang điểm danh sinh viên, dashboard quản trị, giao diện quản lý sinh viên và lịch học, thiết kế UI/UX, tích hợp API với frontend. \\ \hline
-\end{tabularx}
-\caption{Chi tiết nhiệm vụ của từng thành viên}
-\label{tab:phancong}
-\end{table}
-
+% =====================================================
+% CHƯƠNG 8: KẾT LUẬN
+% =====================================================
 \chapter{Kết luận và hướng phát triển}
 
 \section{Kết luận}
-Dự án đã xây dựng thành công một hệ thống điểm danh thông minh với xác minh 1-1, kiến trúc microservices và quy trình vận hành đầy đủ (đăng ký, duyệt, điểm danh, báo cáo). Cấu trúc tách rời giữa API và AI Worker giúp hệ thống ổn định khi xử lý đồng thời nhiều lượt điểm danh.
+Dự án đã xây dựng thành công một hệ thống điểm danh thông minh với các thành tựu chính:
+\begin{itemize}[leftmargin=*]
+    \item Xác minh danh tính 1-1 bằng nhận diện khuôn mặt AI (ArcFace + RetinaFace), đạt độ trễ dưới 1.5 giây mỗi lượt điểm danh.
+    \item Kiến trúc microservices với 8 container Docker, tách biệt tầng xử lý AI và nghiệp vụ, dễ mở rộng.
+    \item Quy trình vận hành đầy đủ: đăng ký, duyệt, điểm danh đa phiên, quét vắng tự động, dashboard thống kê và xuất báo cáo CSV.
+    \item Triển khai thực tế trên Internet với SSL, CI/CD tự động và sao lưu định kỳ.
+\end{itemize}
 
 \section{Hướng phát triển}
-\begin{itemize}
-    \item Bổ sung liveness detection để chống giả mạo.
-    \item Tối ưu scale bằng cách tự động tăng/giảm số lượng worker.
-    \item Nâng cấp báo cáo và dashboard theo thời gian thực (WebSocket).
+\begin{itemize}[leftmargin=*]
+    \item Bổ sung \textit{liveness detection} để chống giả mạo bằng ảnh tĩnh.
+    \item Tối ưu scale bằng cách tự động tăng/giảm số lượng worker theo tải.
+    \item Nâng cấp dashboard theo dõi thời gian thực bằng WebSocket.
+    \item Phát triển ứng dụng mobile để điểm danh tiện lợi hơn.
 \end{itemize}
 
 \vspace{1cm}

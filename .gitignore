@@ -53,4 +53,7 @@ report/out/**/*.log
 report/out/**/*.lot
 report/out/**/*.out
 report/out/**/*.toc
-report/out/**/*.synctex.gz
+report/out/**/*.synctex.gz
+
+# 8. PlantUML
+uml/plantuml.jar

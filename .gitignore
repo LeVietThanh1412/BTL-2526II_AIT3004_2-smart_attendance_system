@@ -43,3 +43,14 @@ Thumbs.db
 *.onnx
 *.pt
 *.pth
+
+# 7. LaTeX Temporary Files
+report/out/**/*.aux
+report/out/**/*.fdb_latexmk
+report/out/**/*.fls
+report/out/**/*.lof
+report/out/**/*.log
+report/out/**/*.lot
+report/out/**/*.out
+report/out/**/*.toc
+report/out/**/*.synctex.gz

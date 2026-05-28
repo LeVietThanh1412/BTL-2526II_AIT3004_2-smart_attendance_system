@@ -62,7 +62,7 @@
         \normalsize
         1. 24022454 Lê Việt Thành (Trưởng nhóm - DevOps Lead) \\
         2. 24022406 Nguyễn Nhật Minh (Backend Developer) \\
-        3. 24022364 Tạ Duy Khánh (AI/Worker Developer) \\
+        3. 24022364 Tạ Duy Khánh (AI/ML Engineer) \\
         4. 24022394 Nguyễn Đức Mạnh (Frontend Developer) \\
     \end{flushleft}
 
@@ -77,7 +77,18 @@
 \newpage
 
 \chapter{Tổng quan dự án}
-Dự án \textbf{Smart Attendance System} hướng đến tự động hóa quy trình điểm danh bằng nhận diện khuôn mặt với xác minh 1-1 theo mã sinh viên. Hệ thống triển khai theo kiến trúc microservices, tách rời backend nghiệp vụ và AI worker để đảm bảo khả năng mở rộng và hiệu năng trong môi trường thực tế.
+\section{Bối cảnh và bài toán}
+Điểm danh thủ công trong môi trường giáo dục dễ tốn thời gian và khó kiểm soát gian lận. Dự án \textbf{Smart Attendance System} giải quyết bài toán này bằng cách tự động hóa điểm danh qua nhận diện khuôn mặt, xác minh 1-1 theo mã sinh viên để tăng độ chính xác.
+
+\section{Mục tiêu}
+\begin{itemize}
+    \item Tự động hóa điểm danh và giảm thao tác thủ công.
+    \item Đảm bảo xác minh đúng danh tính theo mã sinh viên.
+    \item Hỗ trợ quản trị, thống kê và báo cáo nhanh chóng.
+\end{itemize}
+
+\section{Phạm vi}
+Hệ thống phục vụ hai nhóm người dùng chính: sinh viên (điểm danh, đăng ký lịch học) và giảng viên/admin (duyệt sinh viên, quản trị lịch học, theo dõi thống kê). Kiến trúc microservices tách backend nghiệp vụ và AI worker giúp dễ mở rộng và vận hành ổn định.
 
 \chapter{Phân công}
 \section{Thành viên và vai trò}
@@ -88,7 +99,7 @@ Dự án \textbf{Smart Attendance System} hướng đến tự động hóa quy 
 \textbf{STT} & \textbf{MSSV} & \textbf{Họ và tên} & \textbf{Vai trò chính} \\ \hline
 1 & 24022454 & Lê Việt Thành & Trưởng nhóm, DevOps, Thiết kế hệ thống \\ \hline
 2 & 24022406 & Nguyễn Nhật Minh & Backend Developer \\ \hline
-3 & 24022364 & Tạ Duy Khánh & AI/Worker Developer \\ \hline
+3 & 24022364 & Tạ Duy Khánh & AI/ML Engineer \\ \hline
 4 & 24022394 & Nguyễn Đức Mạnh & Frontend Developer \\ \hline
 \end{tabularx}
 \caption{Thông tin thành viên trong nhóm}
@@ -180,7 +191,7 @@ Các hình dưới đây minh họa các màn hình chính của hệ thống t�
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{dang_ki_diem_danh.png}
-    \caption{Màn hình điểm danh sinh viên (check-in)}
+    \caption{Màn hình đăng ký điểm danh (check-in)}
     \label{fig:demo_checkin}
 \end{figure}
 
